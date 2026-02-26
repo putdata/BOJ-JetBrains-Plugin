@@ -71,4 +71,25 @@ class RunBarPanelTest {
         panel.setRunning(false)
         assertTrue(panel.isRunAllEnabled())
     }
+
+    @Test
+    fun `stop button disabled by default`() {
+        val panel = RunBarPanel(onRunAll = {})
+        assertFalse(panel.isStopEnabled())
+    }
+
+    @Test
+    fun `stop button enabled during running`() {
+        val panel = RunBarPanel(onRunAll = {})
+        panel.setRunning(true)
+        assertTrue(panel.isStopEnabled())
+    }
+
+    @Test
+    fun `stop button disabled after running completes`() {
+        val panel = RunBarPanel(onRunAll = {})
+        panel.setRunning(true)
+        panel.setRunning(false)
+        assertFalse(panel.isStopEnabled())
+    }
 }

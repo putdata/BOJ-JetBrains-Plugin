@@ -13,6 +13,7 @@ import javax.swing.JPanel
 class RunBarPanel(
     private val onRunAll: (command: String) -> Unit,
     private val onAddCustom: () -> Unit = {},
+    private val onStop: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     data class CommandEntry(
@@ -24,6 +25,7 @@ class RunBarPanel(
 
     private val commandComboBox = JComboBox<CommandEntry>()
     private val runAllButton = JButton("▶ 전체 실행")
+    private val stopButton = JButton("■ 중지")
     private val statusLabel = JLabel("실행 대기 중")
 
     init {
@@ -39,6 +41,9 @@ class RunBarPanel(
         leftPanel.add(runAllButton)
         leftPanel.add(addCustomButton)
         addCustomButton.addActionListener { onAddCustom() }
+        stopButton.isEnabled = false
+        stopButton.addActionListener { onStop() }
+        leftPanel.add(stopButton)
 
         add(leftPanel, BorderLayout.WEST)
         add(statusLabel, BorderLayout.EAST)
@@ -68,8 +73,11 @@ class RunBarPanel(
 
     fun isRunAllEnabled(): Boolean = runAllButton.isEnabled
 
+    fun isStopEnabled(): Boolean = stopButton.isEnabled
+
     fun setRunning(running: Boolean) {
         runAllButton.isEnabled = !running && commandComboBox.itemCount > 0
+        stopButton.isEnabled = running
         if (running) {
             statusLabel.text = "실행 중..."
         }
