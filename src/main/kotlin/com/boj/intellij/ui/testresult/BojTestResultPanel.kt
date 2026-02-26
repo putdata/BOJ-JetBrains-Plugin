@@ -42,13 +42,11 @@ class BojTestResultPanel(
     private val inputArea = createReadOnlyTextArea()
     private val expectedArea = createReadOnlyTextArea()
     private val actualArea = createReadOnlyTextArea()
-    private val stderrArea = createReadOnlyTextArea()
-    private val stderrPanel = JPanel(BorderLayout())
 
     init {
         border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
 
-        val splitter = JBSplitter(false, 0.3f)
+        val splitter = JBSplitter(false, 0.15f)
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
 
@@ -115,38 +113,26 @@ class BojTestResultPanel(
         panel.border = BorderFactory.createEmptyBorder(0, 8, 0, 0)
         val c = GridBagConstraints()
         c.fill = GridBagConstraints.BOTH
-        c.weightx = 1.0
-        c.gridx = 0
-        c.gridwidth = 2
+        c.weighty = 0.0
         c.insets = Insets(0, 0, 4, 0)
 
-        // 입력
-        c.gridy = 0; c.weighty = 0.0
+        // 레이블 행 (gridy=0)
+        c.gridy = 0
+        c.gridx = 0; c.weightx = 0.25; c.insets = Insets(0, 0, 4, 4)
         panel.add(createSectionLabel("예제 입력"), c)
-        c.gridy = 1; c.weighty = 0.2
-        panel.add(JBScrollPane(inputArea), c)
-
-        // 기대 출력 / 실행 결과 (나란히)
-        c.gridwidth = 1; c.gridy = 2; c.weighty = 0.0
-        c.gridx = 0
+        c.gridx = 1; c.weightx = 0.25; c.insets = Insets(0, 4, 4, 4)
         panel.add(createSectionLabel("기대 출력"), c)
-        c.gridx = 1
+        c.gridx = 2; c.weightx = 0.5; c.insets = Insets(0, 4, 4, 0)
         panel.add(createSectionLabel("실행 결과"), c)
 
-        c.gridy = 3; c.weighty = 0.3
-        c.gridx = 0; c.insets = Insets(0, 0, 4, 4)
+        // 컨텐츠 행 (gridy=1) - 3칸 가로 배치
+        c.gridy = 1; c.weighty = 1.0
+        c.gridx = 0; c.weightx = 0.25; c.insets = Insets(0, 0, 0, 4)
+        panel.add(JBScrollPane(inputArea), c)
+        c.gridx = 1; c.weightx = 0.25; c.insets = Insets(0, 4, 0, 4)
         panel.add(JBScrollPane(expectedArea), c)
-        c.gridx = 1; c.insets = Insets(0, 4, 4, 0)
+        c.gridx = 2; c.weightx = 0.5; c.insets = Insets(0, 4, 0, 0)
         panel.add(JBScrollPane(actualArea), c)
-
-        // 표준 에러
-        c.gridx = 0; c.gridwidth = 2; c.gridy = 4; c.weighty = 0.0
-        c.insets = Insets(0, 0, 4, 0)
-        stderrPanel.add(createSectionLabel("표준 에러"), BorderLayout.NORTH)
-        stderrPanel.add(JBScrollPane(stderrArea), BorderLayout.CENTER)
-        stderrPanel.isVisible = false
-        c.gridy = 4; c.weighty = 0.2
-        panel.add(stderrPanel, c)
 
         return panel
     }
@@ -194,8 +180,6 @@ class BojTestResultPanel(
         inputArea.text = ""
         expectedArea.text = ""
         actualArea.text = ""
-        stderrArea.text = ""
-        stderrPanel.isVisible = false
     }
 
     private fun showDetail(entry: TestResultEntry) {
@@ -206,14 +190,16 @@ class BojTestResultPanel(
         }
         inputArea.text = input
         expectedArea.text = result.expectedOutput
-        actualArea.text = result.actualOutput
 
-        if (result.standardError.isNotBlank()) {
-            stderrArea.text = result.standardError
-            stderrPanel.isVisible = true
-        } else {
-            stderrPanel.isVisible = false
+        // stdout + stderr 통합 표시 (Java 콘솔처럼)
+        val combined = buildString {
+            append(result.actualOutput)
+            if (result.standardError.isNotBlank()) {
+                if (result.actualOutput.isNotBlank()) append("\n")
+                append(result.standardError)
+            }
         }
+        actualArea.text = combined
 
         // FAIL인 경우 실행 결과 텍스트 색상 변경
         if (!result.passed) {
