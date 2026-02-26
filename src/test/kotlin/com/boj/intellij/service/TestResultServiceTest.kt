@@ -74,6 +74,36 @@ class TestResultServiceTest {
         assertEquals(2, service.getSampleCount())
     }
 
+    @Test
+    fun `adds result with TestCaseKey and notifies listener`() {
+        val service = TestResultService()
+        var notifiedKey: TestCaseKey? = null
+        service.addListener(object : TestResultService.Listener {
+            override fun onSampleResult(index: Int, result: SampleRunResult) {}
+            override fun onAllResultsCleared() {}
+            override fun onRunAllComplete(passedCount: Int, totalCount: Int) {}
+            override fun onResult(key: TestCaseKey, result: SampleRunResult) {
+                notifiedKey = key
+            }
+        })
+
+        val key = TestCaseKey.Custom("엣지케이스")
+        service.addResult(key, createPassResult())
+
+        assertEquals(key, notifiedKey)
+        assertEquals(createPassResult(), service.getResult(key))
+    }
+
+    @Test
+    fun `sets and gets custom case info`() {
+        val service = TestResultService()
+        val key = TestCaseKey.Custom("테스트1")
+        service.setCaseInfo(key, "입력값", "출력값")
+
+        assertEquals("입력값", service.getCaseInput(key))
+        assertEquals("출력값", service.getCaseExpectedOutput(key))
+    }
+
     private fun createPassResult() = SampleRunResult(
         passed = true,
         actualOutput = "3",

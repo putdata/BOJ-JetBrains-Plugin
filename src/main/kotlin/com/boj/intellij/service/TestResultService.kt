@@ -7,6 +7,7 @@ class TestResultService {
         fun onSampleResult(index: Int, result: SampleRunResult)
         fun onAllResultsCleared()
         fun onRunAllComplete(passedCount: Int, totalCount: Int)
+        fun onResult(key: TestCaseKey, result: SampleRunResult) {}
     }
 
     private val results = mutableMapOf<Int, SampleRunResult>()
@@ -14,6 +15,9 @@ class TestResultService {
     private val sampleInputs = mutableMapOf<Int, String>()
     private val sampleExpectedOutputs = mutableMapOf<Int, String>()
     private var sampleCount = 0
+    private val keyedResults = mutableMapOf<TestCaseKey, SampleRunResult>()
+    private val caseInputs = mutableMapOf<TestCaseKey, String>()
+    private val caseExpectedOutputs = mutableMapOf<TestCaseKey, String?>()
 
     fun addListener(listener: Listener) {
         listeners.add(listener)
@@ -34,6 +38,7 @@ class TestResultService {
 
     fun clearResults() {
         results.clear()
+        keyedResults.clear()
         listeners.forEach { it.onAllResultsCleared() }
     }
 
@@ -57,5 +62,32 @@ class TestResultService {
         sampleInputs.clear()
         sampleExpectedOutputs.clear()
         sampleCount = 0
+        caseInputs.clear()
+        caseExpectedOutputs.clear()
     }
+
+    fun addResult(key: TestCaseKey, result: SampleRunResult) {
+        keyedResults[key] = result
+        listeners.forEach { it.onResult(key, result) }
+        if (key is TestCaseKey.Sample) {
+            addSampleResult(key.index, result)
+        }
+    }
+
+    fun getResult(key: TestCaseKey): SampleRunResult? = keyedResults[key]
+
+    fun setCaseInfo(key: TestCaseKey, input: String, expectedOutput: String?) {
+        caseInputs[key] = input
+        if (expectedOutput != null) caseExpectedOutputs[key] = expectedOutput
+        if (key is TestCaseKey.Sample && expectedOutput != null) {
+            setSampleInfo(key.index, input, expectedOutput)
+        }
+    }
+
+    fun getCaseInput(key: TestCaseKey): String? = caseInputs[key]
+
+    fun getCaseExpectedOutput(key: TestCaseKey): String? = caseExpectedOutputs[key]
+
+    fun getCustomKeys(): List<TestCaseKey.Custom> =
+        caseInputs.keys.filterIsInstance<TestCaseKey.Custom>()
 }
