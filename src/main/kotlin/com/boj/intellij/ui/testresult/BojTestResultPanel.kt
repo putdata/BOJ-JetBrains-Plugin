@@ -30,6 +30,11 @@ class BojTestResultPanel(
     private val project: Project,
 ) : JPanel(BorderLayout()), Disposable {
 
+    var onAddCustom: () -> Unit = {}
+    var onManageCustom: () -> Unit = {}
+    var onEditCustom: (name: String) -> Unit = {}
+    var onDeleteCustom: (name: String) -> Unit = {}
+
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
     private val resultList = JBList(listModel)
@@ -47,7 +52,17 @@ class BojTestResultPanel(
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
 
-        add(summaryLabel, BorderLayout.NORTH)
+        val summaryPanel = JPanel(BorderLayout())
+        summaryPanel.add(summaryLabel, BorderLayout.WEST)
+        val summaryButtonPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 4, 0))
+        val addCustomButton = javax.swing.JButton("+ 커스텀")
+        val manageButton = javax.swing.JButton("관리")
+        addCustomButton.addActionListener { onAddCustom() }
+        manageButton.addActionListener { onManageCustom() }
+        summaryButtonPanel.add(addCustomButton)
+        summaryButtonPanel.add(manageButton)
+        summaryPanel.add(summaryButtonPanel, BorderLayout.EAST)
+        add(summaryPanel, BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
 
         resultList.cellRenderer = TestResultCellRenderer()
@@ -59,6 +74,14 @@ class BojTestResultPanel(
                 }
             }
         }
+        resultList.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mousePressed(e: java.awt.event.MouseEvent) {
+                if (e.isPopupTrigger) showContextMenu(e)
+            }
+            override fun mouseReleased(e: java.awt.event.MouseEvent) {
+                if (e.isPopupTrigger) showContextMenu(e)
+            }
+        })
 
         testResultService.addListener(object : TestResultService.Listener {
             override fun onSampleResult(index: Int, result: SampleRunResult) {
@@ -215,6 +238,23 @@ class BojTestResultPanel(
             foreground = UIManager.getColor("Label.disabledForeground")
             border = BorderFactory.createEmptyBorder(4, 0, 2, 0)
         }
+    }
+
+    private fun showContextMenu(e: java.awt.event.MouseEvent) {
+        val index = resultList.locationToIndex(e.point) ?: return
+        val entry = listModel.getElementAt(index) ?: return
+        val key = entry.key
+        if (key !is TestCaseKey.Custom) return
+
+        resultList.selectedIndex = index
+        val menu = javax.swing.JPopupMenu()
+        val editItem = javax.swing.JMenuItem("편집")
+        val deleteItem = javax.swing.JMenuItem("삭제")
+        editItem.addActionListener { onEditCustom(key.name) }
+        deleteItem.addActionListener { onDeleteCustom(key.name) }
+        menu.add(editItem)
+        menu.add(deleteItem)
+        menu.show(resultList, e.x, e.y)
     }
 
     override fun dispose() {}

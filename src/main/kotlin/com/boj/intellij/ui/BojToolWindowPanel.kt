@@ -15,6 +15,7 @@ import com.boj.intellij.sample_run.SampleRunService
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.boj.intellij.ui.custom.AddCustomTestCaseDialog
+import com.boj.intellij.ui.custom.ManageCustomTestCasesDialog
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -298,6 +299,7 @@ class BojToolWindowPanel(
             testService?.setSampleInfo(index, pair.input, pair.output)
         }
         syncCustomCasesToTestResultService()
+        wireTestResultPanelCallbacks()
     }
 
     // --- JS↔Kotlin 통신 처리 ---
@@ -475,6 +477,54 @@ class BojToolWindowPanel(
                 case.expectedOutput,
             )
         }
+    }
+
+    private fun findTestResultPanel(): BojTestResultPanel? {
+        return runCatching {
+            val toolWindow = ToolWindowManager
+                .getInstance(project)
+                .getToolWindow("BOJ 테스트") ?: return null
+            val content = toolWindow.contentManager.getContent(0) ?: return null
+            content.component as? BojTestResultPanel
+        }.getOrNull()
+    }
+
+    private fun wireTestResultPanelCallbacks() {
+        val panel = findTestResultPanel() ?: return
+        panel.onAddCustom = { showAddCustomTestCaseDialog() }
+        panel.onManageCustom = { showManageCustomTestCasesDialog() }
+        panel.onEditCustom = { name -> showEditCustomTestCaseDialog(name) }
+        panel.onDeleteCustom = { name -> deleteCustomTestCase(name) }
+    }
+
+    private fun showEditCustomTestCaseDialog(name: String) {
+        val problemId = currentProblemNumber ?: return
+        val existingCase = customTestCaseRepository.load(problemId)[name] ?: return
+        val dialog = AddCustomTestCaseDialog(project, name, existingCase)
+        if (dialog.showAndGet()) {
+            val newName = dialog.getCaseName().ifBlank { name }
+            if (newName != name) {
+                customTestCaseRepository.delete(problemId, name)
+            }
+            customTestCaseRepository.save(problemId, newName, dialog.getCustomTestCase())
+            syncCustomCasesToTestResultService()
+        }
+    }
+
+    private fun deleteCustomTestCase(name: String) {
+        val problemId = currentProblemNumber ?: return
+        customTestCaseRepository.delete(problemId, name)
+        syncCustomCasesToTestResultService()
+    }
+
+    private fun showManageCustomTestCasesDialog() {
+        val problemId = currentProblemNumber ?: return
+        ManageCustomTestCasesDialog(
+            project = project,
+            repository = customTestCaseRepository,
+            problemId = problemId,
+            onChanged = { syncCustomCasesToTestResultService() },
+        ).show()
     }
 
     // --- 기타 헬퍼 ---
