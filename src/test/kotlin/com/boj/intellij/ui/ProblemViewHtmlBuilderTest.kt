@@ -287,6 +287,31 @@ class ProblemViewHtmlBuilderTest {
     }
 
     @Test
+    fun `builds html with blockquote css styling`() {
+        val html = ProblemViewHtmlBuilder.buildHtml(
+            problem = sampleProblem,
+            problemNumber = "1000",
+            colors = defaultColors,
+        )
+        assertTrue(html.contains("blockquote"))
+        assertTrue(html.contains("border-left"))
+    }
+
+    @Test
+    fun `preserves blockquote html from problem description`() {
+        val problem = sampleProblem.copy(
+            problemDescriptionHtml = "<blockquote><p>인용문 내용</p></blockquote>",
+        )
+        val html = ProblemViewHtmlBuilder.buildHtml(
+            problem = problem,
+            problemNumber = "1000",
+            colors = defaultColors,
+        )
+        assertTrue(html.contains("<blockquote>"))
+        assertTrue(html.contains("인용문 내용"))
+    }
+
+    @Test
     fun `injects custom cef query code when provided`() {
         val html = ProblemViewHtmlBuilder.buildHtml(
             problem = sampleProblem,

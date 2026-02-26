@@ -18,6 +18,23 @@ object ProblemViewHtmlBuilder {
         val runBarHtml = if (hasSamples) buildRunBarHtml() else ""
         val bridgeScript = if (hasSamples) buildBridgeScript(cefQueryInjection) else ""
 
+        val baseCss = loadCssResource("/css/problem-view.css")
+        val themeVars = """
+            :root {
+              --bg: ${colors.panelBg};
+              --fg: ${colors.labelFg};
+              --border: ${colors.borderColor};
+              --code-bg: ${colors.editorBg};
+              --code-fg: ${colors.editorFg};
+              --heading-fg: ${colors.labelFg};
+              --meta-fg: ${colors.secondaryFg};
+              --table-stripe: ${colors.editorBg};
+              --pass-bg: ${colors.passBg}; --pass-fg: ${colors.passFg};
+              --fail-bg: ${colors.failBg}; --fail-fg: ${colors.failFg};
+              --fail-border: ${colors.failBorder};
+            }
+        """.trimIndent()
+
         return """
             <!doctype html>
             <html lang="ko">
@@ -25,48 +42,8 @@ object ProblemViewHtmlBuilder {
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width,initial-scale=1">
               <style>
-                :root {
-                  --bg: ${colors.panelBg};
-                  --fg: ${colors.labelFg};
-                  --border: ${colors.borderColor};
-                  --code-bg: ${colors.editorBg};
-                  --code-fg: ${colors.editorFg};
-                  --heading-fg: ${colors.labelFg};
-                  --meta-fg: ${colors.secondaryFg};
-                  --pass-bg: ${colors.passBg}; --pass-fg: ${colors.passFg};
-                  --fail-bg: ${colors.failBg}; --fail-fg: ${colors.failFg};
-                  --fail-border: ${colors.failBorder};
-                }
-                body {
-                  margin: 10px 14px;
-                  background: var(--bg);
-                  color: var(--fg);
-                  font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-                  font-size: 14px;
-                  line-height: 1.7;
-                }
-                h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; color: var(--heading-fg); }
-                h2 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: var(--heading-fg); }
-                .problem-id { font-weight: 400; color: var(--meta-fg); font-size: 14px; }
-                .meta { color: var(--meta-fg); font-size: 13px; margin-bottom: 12px; }
-                .meta span { margin-right: 12px; }
-                hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-                pre {
-                  padding: 10px 12px; border-radius: 6px;
-                  border: 1px solid var(--border);
-                  background: var(--code-bg); color: var(--code-fg);
-                  font-family: "JetBrains Mono", "D2Coding", Consolas, monospace;
-                  font-size: 12px; line-height: 1.45; overflow: auto;
-                }
-                code {
-                  padding: 1px 4px; border-radius: 4px;
-                  background: var(--code-bg);
-                  font-family: "JetBrains Mono", "D2Coding", Consolas, monospace;
-                  font-size: 12px;
-                }
-                table { border-collapse: collapse; margin: 8px 0; max-width: 100%; }
-                th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-                img { max-width: 100%; height: auto; }
+                $themeVars
+                $baseCss
                 $sampleCss
               </style>
               <script>
@@ -318,6 +295,12 @@ object ProblemViewHtmlBuilder {
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
             .replace("'", "&#39;")
+
+    private fun loadCssResource(path: String): String =
+        ProblemViewHtmlBuilder::class.java.getResourceAsStream(path)
+            ?.reader()
+            ?.readText()
+            ?: ""
 
     private val SCRIPT_TAG_REGEX = Regex("(?is)<script[^>]*>.*?</script>")
     private val STYLE_TAG_REGEX = Regex("(?is)<style[^>]*>.*?</style>")

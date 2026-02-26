@@ -1,0 +1,171 @@
+body {
+  margin: 10px 14px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+  color: var(--heading-fg);
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 24px 0 16px;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+  color: var(--heading-fg);
+}
+
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 24px 0 16px;
+  color: var(--heading-fg);
+}
+
+p {
+  margin: 0 0 16px;
+}
+
+.problem-id {
+  font-weight: 400;
+  color: var(--meta-fg);
+  font-size: 16px;
+}
+
+.meta {
+  color: var(--meta-fg);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.meta span {
+  margin-right: 12px;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+  height: 0.25em;
+  padding: 0;
+}
+
+/* blockquote - GitHub style */
+blockquote {
+  margin: 0 0 16px;
+  padding: 0 1em;
+  color: var(--meta-fg);
+  border-left: 0.25em solid var(--border);
+}
+blockquote > :first-child {
+  margin-top: 0;
+}
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* code blocks - GitHub style */
+pre {
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--code-fg);
+  font-family: "JetBrains Mono", "D2Coding", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow: auto;
+  word-wrap: normal;
+}
+
+code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  border-radius: 6px;
+  background: var(--code-bg);
+  font-family: "JetBrains Mono", "D2Coding", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 85%;
+}
+
+pre code {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  font-size: 100%;
+  word-break: normal;
+  white-space: pre;
+}
+
+/* table - GitHub style */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 0 0 16px;
+  max-width: 100%;
+  display: block;
+  width: max-content;
+  overflow: auto;
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 6px 13px;
+  text-align: left;
+}
+
+th {
+  font-weight: 600;
+  background: var(--code-bg);
+}
+
+tr:nth-child(2n) {
+  background: var(--table-stripe);
+}
+
+/* lists */
+ul, ol {
+  padding-left: 2em;
+  margin: 0 0 16px;
+}
+
+li + li {
+  margin-top: 0.25em;
+}
+
+li > p {
+  margin-top: 16px;
+}
+
+/* images */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* sup, sub */
+sup, sub {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sup {
+  top: -0.5em;
+}
+
+sub {
+  bottom: -0.25em;
+}
