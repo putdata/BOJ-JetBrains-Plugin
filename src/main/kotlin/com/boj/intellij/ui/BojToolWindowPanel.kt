@@ -435,7 +435,7 @@ class BojToolWindowPanel(
     }
 
     private fun sendResult(index: Int, result: SampleRunResult) {
-        findTestResultService()?.addSampleResult(index, result)
+        findTestResultService()?.addResult(TestCaseKey.Sample(index), result)
         val toolWindow = ToolWindowManager
             .getInstance(project)
             .getToolWindow("BOJ 테스트")
