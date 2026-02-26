@@ -1,6 +1,7 @@
 package com.boj.intellij.ui.testresult
 
 import com.boj.intellij.sample_run.SampleRunResult
+import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
@@ -61,7 +62,7 @@ class BojTestResultPanel(
 
         testResultService.addListener(object : TestResultService.Listener {
             override fun onSampleResult(index: Int, result: SampleRunResult) {
-                updateResult(index, result)
+                // Keep for backward compat - but now also handled by onResult
             }
 
             override fun onAllResultsCleared() {
@@ -70,6 +71,10 @@ class BojTestResultPanel(
 
             override fun onRunAllComplete(passedCount: Int, totalCount: Int) {
                 summaryLabel.text = "$passedCount / $totalCount 통과"
+            }
+
+            override fun onResult(key: TestCaseKey, result: SampleRunResult) {
+                updateResultByKey(key, result)
             }
         })
     }
@@ -123,10 +128,14 @@ class BojTestResultPanel(
         return panel
     }
 
-    private fun updateResult(index: Int, result: SampleRunResult) {
+    private fun updateResultByKey(key: TestCaseKey, result: SampleRunResult) {
+        val hasExpectedOutput = when (key) {
+            is TestCaseKey.Sample -> true
+            is TestCaseKey.Custom -> testResultService.getCaseExpectedOutput(key) != null
+        }
         val entry = TestResultEntry(
-            index = index,
-            passed = result.passed,
+            key = key,
+            passed = if (hasExpectedOutput) result.passed else null,
             timedOut = result.timedOut,
             result = result,
         )
@@ -134,22 +143,14 @@ class BojTestResultPanel(
         // 기존 항목 업데이트 또는 추가
         var found = false
         for (i in 0 until listModel.size()) {
-            if (listModel.getElementAt(i).index == index) {
+            if (listModel.getElementAt(i).key == key) {
                 listModel.setElementAt(entry, i)
                 found = true
                 break
             }
         }
         if (!found) {
-            // 인덱스 순서대로 삽입
-            var insertAt = listModel.size()
-            for (i in 0 until listModel.size()) {
-                if (listModel.getElementAt(i).index > index) {
-                    insertAt = i
-                    break
-                }
-            }
-            listModel.insertElementAt(entry, insertAt)
+            listModel.addElement(entry)
         }
 
         // 첫 번째 결과면 자동 선택
@@ -159,7 +160,7 @@ class BojTestResultPanel(
 
         // 현재 선택된 항목이 업데이트된 경우 디테일 패널 갱신
         val selected = resultList.selectedValue
-        if (selected != null && selected.index == index) {
+        if (selected != null && selected.key == key) {
             showDetail(entry)
         }
     }
@@ -176,7 +177,10 @@ class BojTestResultPanel(
 
     private fun showDetail(entry: TestResultEntry) {
         val result = entry.result
-        val input = testResultService.getSampleInput(entry.index) ?: ""
+        val input = when (entry.key) {
+            is TestCaseKey.Sample -> testResultService.getSampleInput(entry.key.index) ?: ""
+            is TestCaseKey.Custom -> testResultService.getCaseInput(entry.key) ?: ""
+        }
         inputArea.text = input
         expectedArea.text = result.expectedOutput
         actualArea.text = result.actualOutput
@@ -217,12 +221,18 @@ class BojTestResultPanel(
 }
 
 data class TestResultEntry(
-    val index: Int,
-    val passed: Boolean,
+    val key: TestCaseKey,
+    val passed: Boolean?,        // null = 기대 출력 없음 (RUN 상태)
     val timedOut: Boolean,
     val result: SampleRunResult,
 ) {
-    override fun toString(): String = "예제 ${index + 1}"
+    // 하위 호환용
+    val index: Int get() = (key as? TestCaseKey.Sample)?.index ?: -1
+
+    override fun toString(): String = when (key) {
+        is TestCaseKey.Sample -> "예제 ${key.index + 1}"
+        is TestCaseKey.Custom -> key.name
+    }
 }
 
 class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
@@ -234,20 +244,26 @@ class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
         cellHasFocus: Boolean,
     ): Component {
         val label = JLabel()
-        val statusIcon = if (value.passed) "\u2713" else "\u2717"
+        val statusIcon = when {
+            value.passed == null -> "●"   // RUN 상태 (기대 출력 없음)
+            value.passed -> "✓"
+            else -> "✗"
+        }
         val statusText = when {
+            value.passed == null -> "RUN"
             value.timedOut -> "TLE"
             value.passed -> "PASS"
             else -> "FAIL"
         }
-        label.text = "$statusIcon  예제 ${value.index + 1}  [$statusText]"
+        val displayName = value.toString()
+        label.text = "$statusIcon  $displayName  [$statusText]"
         label.border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
         label.isOpaque = true
 
-        val statusColor = if (value.passed) {
-            JBColor(Color(0x155724), Color(0x8DD694))
-        } else {
-            JBColor(Color(0xB3261E), Color(0xFF8A80))
+        val statusColor = when {
+            value.passed == null -> UIManager.getColor("Label.foreground") ?: Color.GRAY
+            value.passed -> JBColor(Color(0x155724), Color(0x8DD694))
+            else -> JBColor(Color(0xB3261E), Color(0xFF8A80))
         }
 
         if (isSelected) {
