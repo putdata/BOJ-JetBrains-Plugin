@@ -19,3 +19,6 @@ Thumbs.db
 
 # Sisyphus
 .sisyphus/
+
+# Worktrees
+.worktrees/
