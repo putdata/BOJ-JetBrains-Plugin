@@ -331,6 +331,9 @@ class BojToolWindowPanel(
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         var passedCount = 0
 
+        // 재실행 시 이전 결과 초기화
+        runOnEdt { findTestResultService()?.clearResults() }
+
         for ((index, sample) in currentSamples.withIndex()) {
             try {
                 val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)

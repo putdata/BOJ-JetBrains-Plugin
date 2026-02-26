@@ -156,6 +156,12 @@ class BojTestResultPanel(
         if (resultList.selectedIndex == -1) {
             resultList.selectedIndex = 0
         }
+
+        // 현재 선택된 항목이 업데이트된 경우 디테일 패널 갱신
+        val selected = resultList.selectedValue
+        if (selected != null && selected.index == index) {
+            showDetail(entry)
+        }
     }
 
     private fun clearAll() {
