@@ -78,7 +78,11 @@ class BojToolWindowPanel(
     private val runBarPanel = RunBarPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
         onAddCustom = { showAddCustomTestCaseDialog() },
+        onStop = { handleStop() },
     )
+
+    @Volatile
+    private var cancelRequested = false
 
     private var currentSamples: List<ParsedSamplePair> = emptyList()
     private var isFetchInProgress: Boolean = false
@@ -300,6 +304,12 @@ class BojToolWindowPanel(
         }
         syncCustomCasesToTestResultService()
         wireTestResultPanelCallbacks()
+
+        // 테스트 목록 미리 표시
+        val testResultPanel = findTestResultPanel()
+        val customKeys = customTestCaseRepository.load(currentProblemNumber ?: "")
+            .keys.map { TestCaseKey.Custom(it) }
+        testResultPanel?.populateEntries(problem.samplePairs.size, customKeys)
     }
 
     // --- JS↔Kotlin 통신 처리 ---
@@ -348,39 +358,85 @@ class BojToolWindowPanel(
         }
     }
 
+    private fun handleStop() {
+        cancelRequested = true
+    }
+
+    private fun createErrorResult(expectedOutput: String, errorMessage: String): SampleRunResult {
+        return SampleRunResult(
+            passed = false,
+            actualOutput = "",
+            expectedOutput = expectedOutput,
+            standardError = errorMessage,
+            exitCode = null,
+            timedOut = false,
+            comparison = OutputComparisonResult(
+                passed = false,
+                normalizedExpected = expectedOutput,
+                normalizedActual = "",
+            ),
+        )
+    }
+
+    private fun handleRunSingle(key: TestCaseKey, command: String) {
+        val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
+        runOnEdt { findTestResultPanel()?.setRunning(key) }
+
+        when (key) {
+            is TestCaseKey.Sample -> {
+                val sample = currentSamples.getOrNull(key.index) ?: return
+                val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
+                try {
+                    val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                    runOnEdt { sendResult(key.index, result) }
+                } catch (exception: Exception) {
+                    val message = exception.message ?: exception::class.simpleName.orEmpty()
+                    runOnEdt { sendResult(key.index, createErrorResult(sample.output, message)) }
+                }
+            }
+            is TestCaseKey.Custom -> {
+                val problemId = currentProblemNumber ?: return
+                val case = customTestCaseRepository.load(problemId)[key.name] ?: return
+                val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput ?: "")
+                try {
+                    val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                    runOnEdt { findTestResultService()?.addResult(key, result) }
+                } catch (exception: Exception) {
+                    val message = exception.message ?: exception::class.simpleName.orEmpty()
+                    runOnEdt { findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message)) }
+                }
+            }
+        }
+    }
+
     private fun handleRunAll(command: String) {
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         var passedCount = 0
         var judgedCount = 0
+        cancelRequested = false
 
         runOnEdt {
             runBarPanel.setRunning(true)
             findTestResultService()?.clearResults()
+            findTestResultPanel()?.setAllRunning()
         }
 
         // 공식 예제 실행
         for ((index, sample) in currentSamples.withIndex()) {
+            if (cancelRequested) break
+            val key = TestCaseKey.Sample(index)
+            runOnEdt { findTestResultPanel()?.setRunning(key) }
             try {
                 val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
                 val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                if (cancelRequested) break
                 judgedCount++
                 if (result.passed) passedCount++
                 runOnEdt { sendResult(index, result) }
             } catch (exception: Exception) {
+                if (cancelRequested) break
                 val message = exception.message ?: exception::class.simpleName.orEmpty()
-                val errorResult = SampleRunResult(
-                    passed = false,
-                    actualOutput = "",
-                    expectedOutput = sample.output,
-                    standardError = message,
-                    exitCode = null,
-                    timedOut = false,
-                    comparison = OutputComparisonResult(
-                        passed = false,
-                        normalizedExpected = sample.output,
-                        normalizedActual = "",
-                    ),
-                )
+                val errorResult = createErrorResult(sample.output, message)
                 judgedCount++
                 runOnEdt { sendResult(index, errorResult) }
             }
@@ -388,16 +444,19 @@ class BojToolWindowPanel(
 
         // 커스텀 케이스 실행
         val problemId = currentProblemNumber
-        if (problemId != null) {
+        if (problemId != null && !cancelRequested) {
             val customCases = customTestCaseRepository.load(problemId)
             for ((name, case) in customCases) {
+                if (cancelRequested) break
                 val key = TestCaseKey.Custom(name)
+                runOnEdt { findTestResultPanel()?.setRunning(key) }
                 val sampleCase = SampleCase(
                     input = case.input,
                     expectedOutput = case.expectedOutput ?: "",
                 )
                 try {
                     val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                    if (cancelRequested) break
                     val hasExpected = case.expectedOutput != null
                     if (hasExpected) {
                         judgedCount++
@@ -405,20 +464,9 @@ class BojToolWindowPanel(
                     }
                     runOnEdt { findTestResultService()?.addResult(key, result) }
                 } catch (exception: Exception) {
+                    if (cancelRequested) break
                     val message = exception.message ?: exception::class.simpleName.orEmpty()
-                    val errorResult = SampleRunResult(
-                        passed = false,
-                        actualOutput = "",
-                        expectedOutput = case.expectedOutput ?: "",
-                        standardError = message,
-                        exitCode = null,
-                        timedOut = false,
-                        comparison = OutputComparisonResult(
-                            passed = false,
-                            normalizedExpected = case.expectedOutput ?: "",
-                            normalizedActual = "",
-                        ),
-                    )
+                    val errorResult = createErrorResult(case.expectedOutput ?: "", message)
                     if (case.expectedOutput != null) judgedCount++
                     runOnEdt { findTestResultService()?.addResult(key, errorResult) }
                 }
@@ -427,10 +475,15 @@ class BojToolWindowPanel(
 
         val finalPassedCount = passedCount
         val finalJudgedCount = judgedCount
+        val wasCancelled = cancelRequested
         runOnEdt {
             runBarPanel.setRunning(false)
-            runBarPanel.updateStatus("$finalPassedCount/$finalJudgedCount 통과")
-            findTestResultService()?.notifyRunAllComplete(finalPassedCount, finalJudgedCount)
+            if (wasCancelled) {
+                runBarPanel.updateStatus("중지됨")
+            } else {
+                runBarPanel.updateStatus("$finalPassedCount/$finalJudgedCount 통과")
+                findTestResultService()?.notifyRunAllComplete(finalPassedCount, finalJudgedCount)
+            }
         }
     }
 
@@ -495,6 +548,10 @@ class BojToolWindowPanel(
         panel.onManageCustom = { showManageCustomTestCasesDialog() }
         panel.onEditCustom = { name -> showEditCustomTestCaseDialog(name) }
         panel.onDeleteCustom = { name -> deleteCustomTestCase(name) }
+        panel.onRunSingle = { key ->
+            val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand() ?: DEFAULT_RUN_COMMAND
+            runInBackground { handleRunSingle(key, command) }
+        }
     }
 
     private fun showEditCustomTestCaseDialog(name: String) {
