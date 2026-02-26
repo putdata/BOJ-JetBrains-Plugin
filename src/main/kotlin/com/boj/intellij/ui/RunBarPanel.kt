@@ -12,6 +12,7 @@ import javax.swing.JPanel
 
 class RunBarPanel(
     private val onRunAll: (command: String) -> Unit,
+    private val onAddCustom: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     data class CommandEntry(
@@ -31,10 +32,13 @@ class RunBarPanel(
             BorderFactory.createEmptyBorder(4, 8, 4, 8),
         )
 
+        val addCustomButton = JButton("+ 커스텀")
         val leftPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
         leftPanel.isOpaque = false
         leftPanel.add(commandComboBox)
         leftPanel.add(runAllButton)
+        leftPanel.add(addCustomButton)
+        addCustomButton.addActionListener { onAddCustom() }
 
         add(leftPanel, BorderLayout.WEST)
         add(statusLabel, BorderLayout.EAST)

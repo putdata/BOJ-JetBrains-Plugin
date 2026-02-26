@@ -30,7 +30,7 @@ class ManageCustomTestCasesDialog(
     init {
         title = "커스텀 테스트 케이스 관리 — 문제 $problemId"
         setOKButtonText("닫기")
-        setCancelButtonText(null)
+        // Cancel button is already excluded via createActions() returning only okAction
         refreshList()
         init()
     }
