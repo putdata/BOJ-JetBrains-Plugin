@@ -3,8 +3,10 @@ package com.boj.intellij.ui.testresult
 import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.JBColor
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.components.JBLabel
@@ -19,6 +21,7 @@ import java.awt.GridBagLayout
 import java.awt.Insets
 import javax.swing.BorderFactory
 import javax.swing.DefaultListModel
+import javax.swing.Icon
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
@@ -34,6 +37,7 @@ class BojTestResultPanel(
     var onManageCustom: () -> Unit = {}
     var onEditCustom: (name: String) -> Unit = {}
     var onDeleteCustom: (name: String) -> Unit = {}
+    var onRunSingle: (key: TestCaseKey) -> Unit = {}
 
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
@@ -73,6 +77,15 @@ class BojTestResultPanel(
             }
         }
         resultList.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                val idx = resultList.locationToIndex(e.point) ?: return
+                val cellBounds = resultList.getCellBounds(idx, idx) ?: return
+                val relativeX = e.x - cellBounds.x
+                if (relativeX <= TestResultCellRenderer.RUN_BUTTON_WIDTH + 4) {
+                    val clickedEntry = listModel.getElementAt(idx) ?: return
+                    onRunSingle(clickedEntry.key)
+                }
+            }
             override fun mousePressed(e: java.awt.event.MouseEvent) {
                 if (e.isPopupTrigger) showContextMenu(e)
             }
@@ -101,6 +114,40 @@ class BojTestResultPanel(
     }
 
     fun getTestResultService(): TestResultService = testResultService
+
+    fun populateEntries(sampleCount: Int, customKeys: List<TestCaseKey.Custom>) {
+        listModel.clear()
+        for (i in 0 until sampleCount) {
+            listModel.addElement(TestResultEntry(key = TestCaseKey.Sample(i)))
+        }
+        for (customKey in customKeys) {
+            listModel.addElement(TestResultEntry(key = customKey))
+        }
+        if (listModel.size() > 0) {
+            resultList.selectedIndex = 0
+        }
+        summaryLabel.text = "실행 대기 중"
+        inputArea.text = ""
+        expectedArea.text = ""
+        actualArea.text = ""
+    }
+
+    fun setRunning(key: TestCaseKey) {
+        for (i in 0 until listModel.size()) {
+            val entry = listModel.getElementAt(i)
+            if (entry.key == key) {
+                listModel.setElementAt(entry.copy(running = true, result = null, passed = null, elapsedMs = null), i)
+                break
+            }
+        }
+    }
+
+    fun setAllRunning() {
+        for (i in 0 until listModel.size()) {
+            val entry = listModel.getElementAt(i)
+            listModel.setElementAt(entry.copy(running = true, result = null, passed = null, elapsedMs = null), i)
+        }
+    }
 
     private fun buildListPanel(): JPanel {
         val panel = JPanel(BorderLayout())
@@ -147,9 +194,9 @@ class BojTestResultPanel(
             passed = if (hasExpectedOutput) result.passed else null,
             timedOut = result.timedOut,
             result = result,
+            elapsedMs = result.elapsedMs,
         )
 
-        // 기존 항목 업데이트 또는 추가
         var found = false
         for (i in 0 until listModel.size()) {
             if (listModel.getElementAt(i).key == key) {
@@ -162,12 +209,10 @@ class BojTestResultPanel(
             listModel.addElement(entry)
         }
 
-        // 첫 번째 결과면 자동 선택
         if (resultList.selectedIndex == -1) {
             resultList.selectedIndex = 0
         }
 
-        // 현재 선택된 항목이 업데이트된 경우 디테일 패널 갱신
         val selected = resultList.selectedValue
         if (selected != null && selected.key == key) {
             showDetail(entry)
@@ -175,7 +220,13 @@ class BojTestResultPanel(
     }
 
     private fun clearAll() {
-        listModel.clear()
+        for (i in 0 until listModel.size()) {
+            val entry = listModel.getElementAt(i)
+            listModel.setElementAt(
+                entry.copy(passed = null, timedOut = false, result = null, running = false, elapsedMs = null),
+                i,
+            )
+        }
         summaryLabel.text = "실행 대기 중"
         inputArea.text = ""
         expectedArea.text = ""
@@ -189,9 +240,19 @@ class BojTestResultPanel(
             is TestCaseKey.Custom -> testResultService.getCaseInput(entry.key) ?: ""
         }
         inputArea.text = input
+
+        if (result == null) {
+            expectedArea.text = when (entry.key) {
+                is TestCaseKey.Sample -> testResultService.getSampleExpectedOutput((entry.key).index) ?: ""
+                is TestCaseKey.Custom -> testResultService.getCaseExpectedOutput(entry.key) ?: ""
+            }
+            actualArea.text = if (entry.running) "실행 중..." else ""
+            actualArea.foreground = UIManager.getColor("TextArea.foreground")
+            return
+        }
+
         expectedArea.text = result.expectedOutput
 
-        // stdout + stderr 통합 표시 (Java 콘솔처럼)
         val combined = buildString {
             append(result.actualOutput)
             if (result.standardError.isNotBlank()) {
@@ -201,7 +262,6 @@ class BojTestResultPanel(
         }
         actualArea.text = combined
 
-        // FAIL인 경우 실행 결과 텍스트 색상 변경
         if (!result.passed) {
             actualArea.foreground = JBColor(Color(0xB3261E), Color(0xFF8A80))
         } else {
@@ -248,12 +308,15 @@ class BojTestResultPanel(
 
 data class TestResultEntry(
     val key: TestCaseKey,
-    val passed: Boolean?,        // null = 기대 출력 없음 (RUN 상태)
-    val timedOut: Boolean,
-    val result: SampleRunResult,
+    val passed: Boolean? = null,       // null = 기대 출력 없음 (RUN 상태) 또는 미실행
+    val timedOut: Boolean = false,
+    val result: SampleRunResult? = null,  // null = 아직 미실행 (PENDING)
+    val running: Boolean = false,
+    val elapsedMs: Long? = null,
 ) {
-    // 하위 호환용
     val index: Int get() = (key as? TestCaseKey.Sample)?.index ?: -1
+
+    val isPending: Boolean get() = result == null && !running
 
     override fun toString(): String = when (key) {
         is TestCaseKey.Sample -> "예제 ${key.index + 1}"
@@ -262,6 +325,14 @@ data class TestResultEntry(
 }
 
 class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
+
+    companion object {
+        const val RUN_BUTTON_WIDTH = 20
+        private val PASS_COLOR = JBColor(Color(0x155724), Color(0x8DD694))
+        private val FAIL_COLOR = JBColor(Color(0xB3261E), Color(0xFF8A80))
+        private val PENDING_COLOR = JBColor(Color(0x999999), Color(0x666666))
+    }
+
     override fun getListCellRendererComponent(
         list: JList<out TestResultEntry>,
         value: TestResultEntry,
@@ -269,37 +340,70 @@ class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
         isSelected: Boolean,
         cellHasFocus: Boolean,
     ): Component {
-        val label = JLabel()
-        val statusIcon = when {
-            value.passed == null -> "●"   // RUN 상태 (기대 출력 없음)
-            value.passed -> "✓"
-            else -> "✗"
+        val panel = JPanel(BorderLayout(4, 0))
+        panel.border = BorderFactory.createEmptyBorder(2, 4, 2, 8)
+        panel.isOpaque = true
+
+        // 왼쪽: 실행 버튼 아이콘 영역
+        val runIconLabel = JLabel(AllIcons.Actions.Execute)
+        runIconLabel.preferredSize = java.awt.Dimension(RUN_BUTTON_WIDTH, 16)
+        panel.add(runIconLabel, BorderLayout.WEST)
+
+        // 가운데: 상태 아이콘 + 이름 + 상태 텍스트
+        val statusIcon: Icon = when {
+            value.running -> AnimatedIcon.Default()
+            value.isPending -> AllIcons.RunConfigurations.TestNotRan
+            value.timedOut -> AllIcons.General.Warning
+            value.passed == null -> AllIcons.RunConfigurations.TestNotRan
+            value.passed -> AllIcons.RunConfigurations.TestPassed
+            else -> AllIcons.RunConfigurations.TestFailed
         }
+
         val statusText = when {
-            value.passed == null -> "RUN"
+            value.running -> "실행 중..."
+            value.isPending -> ""
             value.timedOut -> "TLE"
+            value.passed == null -> "RUN"
             value.passed -> "PASS"
             else -> "FAIL"
         }
+
         val displayName = value.toString()
-        label.text = "$statusIcon  $displayName  [$statusText]"
-        label.border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
-        label.isOpaque = true
+        val centerLabel = JLabel(
+            if (statusText.isNotEmpty()) "$displayName  [$statusText]" else displayName
+        )
+        centerLabel.icon = statusIcon
+        centerLabel.iconTextGap = 6
 
         val statusColor = when {
+            value.running -> UIManager.getColor("Label.foreground") ?: Color.GRAY
+            value.isPending -> PENDING_COLOR
             value.passed == null -> UIManager.getColor("Label.foreground") ?: Color.GRAY
-            value.passed -> JBColor(Color(0x155724), Color(0x8DD694))
-            else -> JBColor(Color(0xB3261E), Color(0xFF8A80))
+            value.passed -> PASS_COLOR
+            else -> FAIL_COLOR
+        }
+        centerLabel.foreground = statusColor
+        panel.add(centerLabel, BorderLayout.CENTER)
+
+        // 오른쪽: 실행 시간
+        if (value.elapsedMs != null && !value.running && !value.isPending) {
+            val timeText = formatElapsedTime(value.elapsedMs)
+            val timeLabel = JLabel(timeText)
+            timeLabel.foreground = UIManager.getColor("Label.disabledForeground") ?: Color.GRAY
+            timeLabel.font = timeLabel.font.deriveFont(11f)
+            panel.add(timeLabel, BorderLayout.EAST)
         }
 
         if (isSelected) {
-            label.background = list.selectionBackground
-            label.foreground = statusColor
+            panel.background = list.selectionBackground
         } else {
-            label.background = list.background
-            label.foreground = statusColor
+            panel.background = list.background
         }
 
-        return label
+        return panel
+    }
+
+    private fun formatElapsedTime(ms: Long): String {
+        return if (ms < 1000) "${ms}ms" else String.format("%.1fs", ms / 1000.0)
     }
 }
