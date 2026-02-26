@@ -19,6 +19,6 @@
                 anchor="bottom"
                 factoryClass="com.boj.intellij.ui.testresult.BojTestResultToolWindowFactory"
                 canCloseContents="false"
-                icon="AllIcons.RunConfigurations.TestState.Run"/>
+                icon="AllIcons.Toolwindows.ToolWindowRun"/>
     </extensions>
 </idea-plugin>
