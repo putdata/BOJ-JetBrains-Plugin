@@ -71,6 +71,8 @@ class BojToolWindowPanel(
         }
     }
 
+    private val runBarPanel = RunBarPanel(onRunAll = { command -> runInBackground { handleRunAll(command) } })
+
     private var currentSamples: List<ParsedSamplePair> = emptyList()
     private var isFetchInProgress: Boolean = false
     private var lastFetchedProblemNumber: String? = null
@@ -82,6 +84,7 @@ class BojToolWindowPanel(
         border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
         add(buildFetchHeader(), BorderLayout.NORTH)
         add(buildMainContent(), BorderLayout.CENTER)
+        add(runBarPanel, BorderLayout.SOUTH)
 
         wireEvents()
         wireCurrentFileTracking()
@@ -260,13 +263,22 @@ class BojToolWindowPanel(
         problemViewFallbackArea.text = ProblemViewHtmlBuilder.buildFallbackText(problem = problem, problemNumber = number)
         currentSamples = problem.samplePairs
 
-        // 자동 감지된 실행 명령어를 JS에 전달
+        // RunBarPanel에 사용 가능한 명령어 설정
+        val commands = mutableListOf<RunBarPanel.CommandEntry>()
         val inferredCommand = resolveCurrentFileRunCommand()
         if (inferredCommand != null) {
-            problemViewBrowser?.cefBrowser?.executeJavaScript(
-                "if(window.setCommand) window.setCommand(\"${escapeJsString(inferredCommand)}\")", "", 0
-            )
+            val selectedFilePath = runCatching {
+                FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
+            }.getOrNull()
+            val displayName = if (selectedFilePath != null) {
+                "(자동) ${RunConfigurationCommandResolver.getDisplayName(selectedFilePath)}"
+            } else {
+                "(자동 감지)"
+            }
+            commands.add(RunBarPanel.CommandEntry(displayName, inferredCommand))
         }
+        runBarPanel.setAvailableCommands(commands)
+        runBarPanel.updateStatus("실행 대기 중")
 
         // 하단 ToolWindow에 예제 정보 전달
         val testService = findTestResultService()
@@ -283,30 +295,27 @@ class BojToolWindowPanel(
         runInBackground {
             try {
                 val action = extractJsonString(request, "action") ?: return@runInBackground
-                val command = extractJsonString(request, "command") ?: ""
                 val index = extractJsonInt(request, "index")
 
                 when (action) {
                     "runSample" -> {
+                        val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand() ?: DEFAULT_RUN_COMMAND
                         handleRunSample(index ?: return@runInBackground, command)
                     }
-                    "runAll" -> handleRunAll(command)
                 }
             } catch (_: Exception) {
-                // JS 측 onFailure 콜백에서 처리
             }
         }
     }
 
-    private fun handleRunSample(index: Int, rawCommand: String) {
+    private fun handleRunSample(index: Int, command: String) {
         val sample = currentSamples.getOrNull(index) ?: return
-        val command = resolveRunCommand(rawCommand)
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
 
         try {
             val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
             val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-            runOnEdt { sendResultToJs(index, result) }
+            runOnEdt { sendResult(index, result) }
         } catch (exception: Exception) {
             val message = exception.message ?: exception::class.simpleName.orEmpty()
             val errorResult = SampleRunResult(
@@ -322,24 +331,25 @@ class BojToolWindowPanel(
                     normalizedActual = "",
                 ),
             )
-            runOnEdt { sendResultToJs(index, errorResult) }
+            runOnEdt { sendResult(index, errorResult) }
         }
     }
 
-    private fun handleRunAll(rawCommand: String) {
-        val command = resolveRunCommand(rawCommand)
+    private fun handleRunAll(command: String) {
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         var passedCount = 0
 
-        // 재실행 시 이전 결과 초기화
-        runOnEdt { findTestResultService()?.clearResults() }
+        runOnEdt {
+            runBarPanel.setRunning(true)
+            findTestResultService()?.clearResults()
+        }
 
         for ((index, sample) in currentSamples.withIndex()) {
             try {
                 val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
                 val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
                 if (result.passed) passedCount++
-                runOnEdt { sendResultToJs(index, result) }
+                runOnEdt { sendResult(index, result) }
             } catch (exception: Exception) {
                 val message = exception.message ?: exception::class.simpleName.orEmpty()
                 val errorResult = SampleRunResult(
@@ -355,37 +365,20 @@ class BojToolWindowPanel(
                         normalizedActual = "",
                     ),
                 )
-                runOnEdt { sendResultToJs(index, errorResult) }
+                runOnEdt { sendResult(index, errorResult) }
             }
         }
 
         val totalCount = currentSamples.size
         val finalPassedCount = passedCount
         runOnEdt {
-            problemViewBrowser?.cefBrowser?.executeJavaScript(
-                "if(window.onRunAllComplete) window.onRunAllComplete($finalPassedCount, $totalCount)", "", 0
-            )
+            runBarPanel.setRunning(false)
+            runBarPanel.updateStatus("$finalPassedCount/$totalCount 통과")
             findTestResultService()?.notifyRunAllComplete(finalPassedCount, totalCount)
         }
     }
 
-    private fun sendResultToJs(index: Int, result: SampleRunResult) {
-        val escapedActual = escapeJsString(result.actualOutput)
-        val escapedStderr = escapeJsString(result.standardError)
-        val exitCodeJs = result.exitCode?.toString() ?: "null"
-
-        problemViewBrowser?.cefBrowser?.executeJavaScript(
-            """window.onSampleResult($index, {
-                passed: ${result.passed},
-                stdout: "$escapedActual",
-                stderr: "$escapedStderr",
-                exitCode: $exitCodeJs,
-                timedOut: ${result.timedOut}
-            })""".trimIndent(),
-            "", 0
-        )
-
-        // 하단 ToolWindow에 결과 전달 및 자동 열기
+    private fun sendResult(index: Int, result: SampleRunResult) {
         findTestResultService()?.addSampleResult(index, result)
         val toolWindow = ToolWindowManager
             .getInstance(project)
@@ -394,13 +387,6 @@ class BojToolWindowPanel(
             toolWindow.show()
         }
     }
-
-    internal fun escapeJsString(value: String): String =
-        value.replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
 
     private fun findTestResultService(): TestResultService? {
         return runCatching {
@@ -423,20 +409,6 @@ class BojToolWindowPanel(
     private fun setFetchStatus(message: String, isError: Boolean) {
         fetchStatusLabel.text = message
         fetchStatusLabel.foreground = if (isError) failColor else baseLabelColor
-    }
-
-    private fun resolveRunCommand(rawCommand: String): String {
-        val trimmed = rawCommand.trim()
-        if (trimmed.isNotBlank()) {
-            return trimmed
-        }
-
-        val inferredFromCurrentFile = resolveCurrentFileRunCommand()
-        if (inferredFromCurrentFile != null) {
-            return inferredFromCurrentFile
-        }
-
-        return DEFAULT_RUN_COMMAND
     }
 
     private fun resolveCurrentFileRunCommand(): String? {

@@ -2,11 +2,11 @@ package com.boj.intellij.integration
 
 import com.boj.intellij.fetch.BojFetchService
 import com.boj.intellij.parse.BojHtmlParser
-import com.boj.intellij.parse.ParsedProblem
 import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
 import com.boj.intellij.sample_run.SampleRunService
 import com.boj.intellij.ui.BojToolWindowPanel
+import com.boj.intellij.ui.RunBarPanel
 import com.boj.intellij.parse.ParsedSamplePair
 import com.intellij.openapi.project.Project
 import java.lang.reflect.InvocationHandler
@@ -95,16 +95,15 @@ class BojWorkflowIntegrationTest {
     }
 
     @Test
-    fun `blank run command falls back to main executable command when current file cannot be resolved`() {
+    fun `runBarPanel getSelectedCommand returns null when no commands are set`() {
         val panel = createPanel(object : BojFetchService {
             override fun fetchProblemPage(problemNumber: String): String = bojProblemHtml()
         })
 
-        val defaultCommand = invokePrivateWithResult<String>(panel, "resolveRunCommand", "   ")
-        assertEquals("./main", defaultCommand)
-
-        val explicitCommand = invokePrivateWithResult<String>(panel, "resolveRunCommand", "  python3 main.py  ")
-        assertEquals("python3 main.py", explicitCommand)
+        onEdt {
+            val runBarPanel = field<RunBarPanel>(panel, "runBarPanel")
+            assertNull(runBarPanel.getSelectedCommand())
+        }
     }
 
     @Test
@@ -278,13 +277,6 @@ class BojWorkflowIntegrationTest {
         val method = target::class.java.getDeclaredMethod(methodName, *args.map { it::class.java }.toTypedArray())
         method.isAccessible = true
         method.invoke(target, *args)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <T> invokePrivateWithResult(target: Any, methodName: String, vararg args: Any): T {
-        val method = target::class.java.getDeclaredMethod(methodName, *args.map { it::class.java }.toTypedArray())
-        method.isAccessible = true
-        return method.invoke(target, *args) as T
     }
 
     @Suppress("UNCHECKED_CAST")
