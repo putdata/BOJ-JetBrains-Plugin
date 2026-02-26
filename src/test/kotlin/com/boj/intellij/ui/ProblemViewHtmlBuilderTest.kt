@@ -242,17 +242,15 @@ class ProblemViewHtmlBuilderTest {
     // --- Task 2: 실행 바 및 CSS 스타일 ---
 
     @Test
-    fun `builds html containing run bar with command input and run all button`() {
+    fun `builds html without run bar`() {
         val html = ProblemViewHtmlBuilder.buildHtml(
             problem = sampleProblem,
             problemNumber = "1000",
             colors = defaultColors,
         )
-
-        assertTrue(html.contains("run-bar"))
-        assertTrue(html.contains("commandInput"))
-        assertTrue(html.contains("runAllBtn"))
-        assertTrue(html.contains("전체 실행"))
+        assertFalse(html.contains("run-bar"))
+        assertFalse(html.contains("commandInput"))
+        assertFalse(html.contains("runAllBtn"))
     }
 
     @Test
@@ -262,11 +260,9 @@ class ProblemViewHtmlBuilderTest {
             problemNumber = "1000",
             colors = defaultColors,
         )
-
         assertTrue(html.contains(".sample-group"))
         assertTrue(html.contains(".sample-columns"))
-        assertTrue(html.contains(".run-bar"))
-        assertTrue(html.contains(".result-badge"))
+        assertTrue(html.contains(".run-btn"))
     }
 
     // --- Task 3: JavaScript 통신 코드 ---
@@ -278,12 +274,10 @@ class ProblemViewHtmlBuilderTest {
             problemNumber = "1000",
             colors = defaultColors,
         )
-
         assertTrue(html.contains("function runSingle"))
-        assertTrue(html.contains("function runAll"))
-        assertTrue(html.contains("window.onSampleResult"))
-        assertTrue(html.contains("window.onRunAllComplete"))
         assertTrue(html.contains("cefQuery"))
+        assertFalse(html.contains("function runAll"))
+        assertFalse(html.contains("window.onRunAllComplete"))
     }
 
     @Test

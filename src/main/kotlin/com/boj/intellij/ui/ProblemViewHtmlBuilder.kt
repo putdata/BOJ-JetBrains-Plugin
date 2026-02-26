@@ -15,7 +15,6 @@ object ProblemViewHtmlBuilder {
         val hasSamples = problem.samplePairs.isNotEmpty()
         val sampleCss = if (hasSamples) buildSampleCss() else ""
         val samplesHtml = buildSamplesHtml(problem)
-        val runBarHtml = if (hasSamples) buildRunBarHtml() else ""
         val bridgeScript = if (hasSamples) buildBridgeScript(cefQueryInjection) else ""
 
         val baseCss = loadCssResource("/css/problem-view.css")
@@ -79,7 +78,6 @@ object ProblemViewHtmlBuilder {
                 <h2>출력</h2>
                 $sanitizedOutputHtml
               </section>
-              $runBarHtml
               $samplesHtml
               $bridgeScript
             </body>
@@ -114,7 +112,6 @@ object ProblemViewHtmlBuilder {
                 appendLine("""  <div class="sample-header">""")
                 appendLine("""    <h3>예제 $num</h3>""")
                 appendLine("""    <button class="run-btn" onclick="runSingle($index)">▶</button>""")
-                appendLine("""    <span class="result-badge" id="badge-$index"></span>""")
                 appendLine("""  </div>""")
                 appendLine("""  <div class="sample-columns">""")
                 appendLine("""    <div class="sample-col">""")
@@ -126,10 +123,6 @@ object ProblemViewHtmlBuilder {
                 appendLine("""      <div class="sample-code"><pre>${escapeHtml(pair.output)}</pre></div>""")
                 appendLine("""    </div>""")
                 appendLine("""  </div>""")
-                appendLine("""  <div class="result-area" id="result-$index">""")
-                appendLine("""    <div class="actual-output"><div class="sample-label">실행 결과</div><pre id="actual-$index"></pre></div>""")
-                appendLine("""    <div class="stderr-area" id="stderr-area-$index" style="display:none"><div class="sample-label">표준 에러</div><pre id="stderr-$index"></pre></div>""")
-                appendLine("""  </div>""")
                 appendLine("""</div>""")
             }
         }
@@ -138,17 +131,6 @@ object ProblemViewHtmlBuilder {
     /** 예제 실행 관련 CSS 스타일 생성 */
     private fun buildSampleCss(): String =
         loadCssResource("/css/problem-view-samples.css")
-
-    /** 실행 바 HTML 생성 (명령어 입력 및 전체 실행 버튼) */
-    private fun buildRunBarHtml(): String {
-        return """
-            <div class="run-bar">
-              <input type="text" id="commandInput" placeholder="실행 명령어 (예: python main.py)">
-              <button id="runAllBtn" onclick="runAll()">전체 실행</button>
-              <span class="status" id="runStatus"></span>
-            </div>
-        """.trimIndent()
-    }
 
     /** JavaScript 브릿지 코드 생성 (Kotlin ↔ JCEF 통신) */
     private fun buildBridgeScript(cefQueryInjection: String): String {
@@ -160,59 +142,10 @@ object ProblemViewHtmlBuilder {
 
         return """
             <script>
-              function getCommand() {
-                return document.getElementById('commandInput').value;
-              }
-
-              window.setCommand = function(cmd) {
-                document.getElementById('commandInput').value = cmd;
-              };
-
               function runSingle(index) {
-                var command = getCommand();
-                var request = JSON.stringify({action: 'runSample', index: index, command: command});
+                var request = JSON.stringify({action: 'runSample', index: index});
                 $cefQueryCall;
-                document.getElementById('badge-' + index).textContent = '실행 중...';
-                document.getElementById('badge-' + index).className = 'result-badge';
               }
-
-              function runAll() {
-                var command = getCommand();
-                var request = JSON.stringify({action: 'runAll', command: command});
-                $cefQueryCall;
-                document.getElementById('runStatus').textContent = '실행 중...';
-              }
-
-              window.onSampleResult = function(index, result) {
-                var badge = document.getElementById('badge-' + index);
-                var resultArea = document.getElementById('result-' + index);
-                var actualPre = document.getElementById('actual-' + index);
-                var stderrArea = document.getElementById('stderr-area-' + index);
-                var stderrPre = document.getElementById('stderr-' + index);
-
-                resultArea.style.display = 'block';
-                actualPre.textContent = result.stdout || '';
-
-                if (result.passed) {
-                  badge.textContent = 'PASS';
-                  badge.className = 'result-badge pass';
-                } else {
-                  badge.textContent = 'FAIL';
-                  badge.className = 'result-badge fail';
-                }
-
-                if (result.stderr) {
-                  stderrArea.style.display = 'block';
-                  stderrPre.textContent = result.stderr;
-                } else {
-                  stderrArea.style.display = 'none';
-                }
-              };
-
-              window.onRunAllComplete = function(passedCount, totalCount) {
-                var status = document.getElementById('runStatus');
-                status.textContent = passedCount + '/' + totalCount + ' 통과';
-              };
             </script>
         """.trimIndent()
     }
