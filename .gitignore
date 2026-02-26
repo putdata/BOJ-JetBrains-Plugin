@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.classpath
+.project
+.settings/
+.intellijPlatform/
+*.iml
+.idea/
+
+# Build outputs
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sisyphus
+.sisyphus/
