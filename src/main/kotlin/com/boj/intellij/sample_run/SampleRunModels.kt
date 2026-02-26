@@ -19,4 +19,5 @@ data class SampleRunResult(
     val exitCode: Int?,
     val timedOut: Boolean,
     val comparison: OutputComparisonResult,
+    val elapsedMs: Long = 0,
 )
