@@ -1,5 +1,6 @@
 package com.boj.intellij.ui
 
+import com.boj.intellij.custom.CustomTestCaseRepository
 import com.boj.intellij.fetch.BojFetchService
 import com.boj.intellij.fetch.HttpBojFetchService
 import com.boj.intellij.parse.BojHtmlParser
@@ -11,7 +12,9 @@ import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
 import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.sample_run.SampleRunService
+import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
+import com.boj.intellij.ui.custom.AddCustomTestCaseDialog
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -71,11 +74,18 @@ class BojToolWindowPanel(
         }
     }
 
-    private val runBarPanel = RunBarPanel(onRunAll = { command -> runInBackground { handleRunAll(command) } })
+    private val runBarPanel = RunBarPanel(
+        onRunAll = { command -> runInBackground { handleRunAll(command) } },
+        onAddCustom = { showAddCustomTestCaseDialog() },
+    )
 
     private var currentSamples: List<ParsedSamplePair> = emptyList()
     private var isFetchInProgress: Boolean = false
     private var lastFetchedProblemNumber: String? = null
+    private val customTestCaseRepository: CustomTestCaseRepository by lazy {
+        val basePath = project.basePath ?: throw IllegalStateException("Project basePath is null")
+        CustomTestCaseRepository(File(basePath, ".boj"))
+    }
 
     private val baseLabelColor = UIManager.getColor("Label.foreground") ?: Color(0x333333)
     private val failColor = JBColor(Color(0xB3261E), Color(0xFF8A80))
@@ -287,6 +297,7 @@ class BojToolWindowPanel(
         problem.samplePairs.forEachIndexed { index, pair ->
             testService?.setSampleInfo(index, pair.input, pair.output)
         }
+        syncCustomCasesToTestResultService()
     }
 
     // --- JS↔Kotlin 통신 처리 ---
@@ -338,16 +349,19 @@ class BojToolWindowPanel(
     private fun handleRunAll(command: String) {
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         var passedCount = 0
+        var judgedCount = 0
 
         runOnEdt {
             runBarPanel.setRunning(true)
             findTestResultService()?.clearResults()
         }
 
+        // 공식 예제 실행
         for ((index, sample) in currentSamples.withIndex()) {
             try {
                 val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
                 val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                judgedCount++
                 if (result.passed) passedCount++
                 runOnEdt { sendResult(index, result) }
             } catch (exception: Exception) {
@@ -365,16 +379,56 @@ class BojToolWindowPanel(
                         normalizedActual = "",
                     ),
                 )
+                judgedCount++
                 runOnEdt { sendResult(index, errorResult) }
             }
         }
 
-        val totalCount = currentSamples.size
+        // 커스텀 케이스 실행
+        val problemId = currentProblemNumber
+        if (problemId != null) {
+            val customCases = customTestCaseRepository.load(problemId)
+            for ((name, case) in customCases) {
+                val key = TestCaseKey.Custom(name)
+                val sampleCase = SampleCase(
+                    input = case.input,
+                    expectedOutput = case.expectedOutput ?: "",
+                )
+                try {
+                    val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                    val hasExpected = case.expectedOutput != null
+                    if (hasExpected) {
+                        judgedCount++
+                        if (result.passed) passedCount++
+                    }
+                    runOnEdt { findTestResultService()?.addResult(key, result) }
+                } catch (exception: Exception) {
+                    val message = exception.message ?: exception::class.simpleName.orEmpty()
+                    val errorResult = SampleRunResult(
+                        passed = false,
+                        actualOutput = "",
+                        expectedOutput = case.expectedOutput ?: "",
+                        standardError = message,
+                        exitCode = null,
+                        timedOut = false,
+                        comparison = OutputComparisonResult(
+                            passed = false,
+                            normalizedExpected = case.expectedOutput ?: "",
+                            normalizedActual = "",
+                        ),
+                    )
+                    if (case.expectedOutput != null) judgedCount++
+                    runOnEdt { findTestResultService()?.addResult(key, errorResult) }
+                }
+            }
+        }
+
         val finalPassedCount = passedCount
+        val finalJudgedCount = judgedCount
         runOnEdt {
             runBarPanel.setRunning(false)
-            runBarPanel.updateStatus("$finalPassedCount/$totalCount 통과")
-            findTestResultService()?.notifyRunAllComplete(finalPassedCount, totalCount)
+            runBarPanel.updateStatus("$finalPassedCount/$finalJudgedCount 통과")
+            findTestResultService()?.notifyRunAllComplete(finalPassedCount, finalJudgedCount)
         }
     }
 
@@ -397,6 +451,30 @@ class BojToolWindowPanel(
             val panel = content.component as? BojTestResultPanel ?: return null
             panel.getTestResultService()
         }.getOrNull()
+    }
+
+    private fun showAddCustomTestCaseDialog() {
+        val problemId = currentProblemNumber ?: return
+        val defaultName = customTestCaseRepository.nextAutoName(problemId)
+        val dialog = AddCustomTestCaseDialog(project, defaultName)
+        if (dialog.showAndGet()) {
+            val name = dialog.getCaseName().ifBlank { defaultName }
+            customTestCaseRepository.save(problemId, name, dialog.getCustomTestCase())
+            syncCustomCasesToTestResultService()
+        }
+    }
+
+    private fun syncCustomCasesToTestResultService() {
+        val problemId = currentProblemNumber ?: return
+        val testService = findTestResultService() ?: return
+        val customCases = customTestCaseRepository.load(problemId)
+        for ((name, case) in customCases) {
+            testService.setCaseInfo(
+                TestCaseKey.Custom(name),
+                case.input,
+                case.expectedOutput,
+            )
+        }
     }
 
     // --- 기타 헬퍼 ---
