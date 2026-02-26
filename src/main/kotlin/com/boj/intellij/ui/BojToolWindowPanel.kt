@@ -12,6 +12,7 @@ import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
 import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.sample_run.SampleRunService
+import com.boj.intellij.settings.BojSettings
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.boj.intellij.ui.custom.AddCustomTestCaseDialog
@@ -51,7 +52,12 @@ class BojToolWindowPanel(
     private val fetchService: BojFetchService = HttpBojFetchService(),
     private val parser: BojParser = BojHtmlParser(),
     private val sampleRunServiceFactory: (command: String, workingDirectory: File?) -> SampleRunService =
-        { command, workingDirectory -> ProcessSampleRunService(command = command, workingDirectory = workingDirectory) },
+        { command, workingDirectory ->
+            val timeoutMs = runCatching {
+                BojSettings.getInstance().state.timeoutSeconds * 1000L
+            }.getOrDefault(SampleRunService.DEFAULT_TIMEOUT_MILLIS)
+            ProcessSampleRunService(command = command, timeoutMillis = timeoutMs, workingDirectory = workingDirectory)
+        },
 ) : JPanel(BorderLayout()), Disposable {
     private val problemNumberField = JTextField(10)
     private val fetchButton = JButton("문제 불러오기")

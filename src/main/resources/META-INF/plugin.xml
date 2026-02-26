@@ -9,6 +9,12 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.boj.intellij.settings.BojSettings"/>
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.boj.intellij.settings.BojSettingsConfigurable"
+                id="com.boj.intellij.settings.BojSettingsConfigurable"
+                displayName="BOJ"/>
         <toolWindow
                 id="BOJ"
                 anchor="right"
