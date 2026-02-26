@@ -1,0 +1,110 @@
+.run-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+}
+.run-bar input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "JetBrains Mono", "D2Coding", Consolas, monospace;
+  font-size: 12px;
+}
+.run-bar button {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+}
+.run-bar .status {
+  color: var(--meta-fg);
+  font-size: 12px;
+}
+.sample-group {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.sample-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sample-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.sample-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sample-col {
+  min-width: 0;
+}
+.sample-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--meta-fg);
+  margin-bottom: 4px;
+}
+.sample-code pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.run-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+}
+.result-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.result-badge.pass {
+  background: var(--pass-bg);
+  color: var(--pass-fg);
+}
+.result-badge.fail {
+  background: var(--fail-bg);
+  color: var(--fail-fg);
+}
+.result-area {
+  margin-top: 8px;
+  display: none;
+}
+.actual-output pre {
+  margin: 4px 0;
+  border-left: 3px solid var(--border);
+}
+.stderr-area pre {
+  margin: 4px 0;
+  border-left: 3px solid var(--fail-border);
+  color: var(--fail-border);
+}
+@media (max-width: 400px) {
+  .sample-columns {
+    grid-template-columns: 1fr;
+  }
+}
