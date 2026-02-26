@@ -400,12 +400,14 @@ class BojToolWindowPanel(
             .replace("\t", "\\t")
 
     private fun findTestResultService(): TestResultService? {
-        val toolWindow = ToolWindowManager
-            .getInstance(project)
-            .getToolWindow("BOJ 테스트") ?: return null
-        val content = toolWindow.contentManager.getContent(0) ?: return null
-        val panel = content.component as? BojTestResultPanel ?: return null
-        return panel.getTestResultService()
+        return runCatching {
+            val toolWindow = ToolWindowManager
+                .getInstance(project)
+                .getToolWindow("BOJ 테스트") ?: return null
+            val content = toolWindow.contentManager.getContent(0) ?: return null
+            val panel = content.component as? BojTestResultPanel ?: return null
+            panel.getTestResultService()
+        }.getOrNull()
     }
 
     // --- 기타 헬퍼 ---
