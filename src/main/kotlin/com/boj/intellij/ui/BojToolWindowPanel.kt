@@ -11,6 +11,8 @@ import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
 import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.sample_run.SampleRunService
+import com.boj.intellij.service.TestResultService
+import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -18,6 +20,7 @@ import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
@@ -264,6 +267,14 @@ class BojToolWindowPanel(
                 "if(window.setCommand) window.setCommand(\"${escapeJsString(inferredCommand)}\")", "", 0
             )
         }
+
+        // 하단 ToolWindow에 예제 정보 전달
+        val testService = findTestResultService()
+        testService?.clearResults()
+        testService?.clearSampleInfo()
+        problem.samplePairs.forEachIndexed { index, pair ->
+            testService?.setSampleInfo(index, pair.input, pair.output)
+        }
     }
 
     // --- JS↔Kotlin 통신 처리 ---
@@ -351,6 +362,7 @@ class BojToolWindowPanel(
             problemViewBrowser?.cefBrowser?.executeJavaScript(
                 "if(window.onRunAllComplete) window.onRunAllComplete($finalPassedCount, $totalCount)", "", 0
             )
+            findTestResultService()?.notifyRunAllComplete(finalPassedCount, totalCount)
         }
     }
 
@@ -369,6 +381,15 @@ class BojToolWindowPanel(
             })""".trimIndent(),
             "", 0
         )
+
+        // 하단 ToolWindow에 결과 전달 및 자동 열기
+        findTestResultService()?.addSampleResult(index, result)
+        val toolWindow = ToolWindowManager
+            .getInstance(project)
+            .getToolWindow("BOJ 테스트")
+        if (toolWindow != null && !toolWindow.isVisible) {
+            toolWindow.show()
+        }
     }
 
     internal fun escapeJsString(value: String): String =
@@ -377,6 +398,15 @@ class BojToolWindowPanel(
             .replace("\n", "\\n")
             .replace("\r", "\\r")
             .replace("\t", "\\t")
+
+    private fun findTestResultService(): TestResultService? {
+        val toolWindow = ToolWindowManager
+            .getInstance(project)
+            .getToolWindow("BOJ 테스트") ?: return null
+        val content = toolWindow.contentManager.getContent(0) ?: return null
+        val panel = content.component as? BojTestResultPanel ?: return null
+        return panel.getTestResultService()
+    }
 
     // --- 기타 헬퍼 ---
 
