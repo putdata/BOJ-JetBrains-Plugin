@@ -14,5 +14,11 @@
                 anchor="right"
                 factoryClass="com.boj.intellij.ui.BojToolWindowFactory"
                 canCloseContents="false"/>
+        <toolWindow
+                id="BOJ 테스트"
+                anchor="bottom"
+                factoryClass="com.boj.intellij.ui.testresult.BojTestResultToolWindowFactory"
+                canCloseContents="false"
+                icon="AllIcons.RunConfigurations.TestState.Run"/>
     </extensions>
 </idea-plugin>
