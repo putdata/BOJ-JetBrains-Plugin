@@ -244,16 +244,18 @@ class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
         label.border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
         label.isOpaque = true
 
+        val statusColor = if (value.passed) {
+            JBColor(Color(0x155724), Color(0x8DD694))
+        } else {
+            JBColor(Color(0xB3261E), Color(0xFF8A80))
+        }
+
         if (isSelected) {
             label.background = list.selectionBackground
-            label.foreground = list.selectionForeground
+            label.foreground = statusColor
         } else {
             label.background = list.background
-            label.foreground = if (value.passed) {
-                JBColor(Color(0x155724), Color(0x8DD694))
-            } else {
-                JBColor(Color(0xB3261E), Color(0xFF8A80))
-            }
+            label.foreground = statusColor
         }
 
         return label
