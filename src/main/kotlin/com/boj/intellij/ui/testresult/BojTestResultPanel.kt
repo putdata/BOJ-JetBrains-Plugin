@@ -189,9 +189,14 @@ class BojTestResultPanel(
             is TestCaseKey.Sample -> true
             is TestCaseKey.Custom -> testResultService.getCaseExpectedOutput(key) != null
         }
+        val hasError = result.timedOut || result.exitCode == null || result.exitCode != 0
         val entry = TestResultEntry(
             key = key,
-            passed = if (hasExpectedOutput) result.passed else null,
+            passed = when {
+                hasExpectedOutput -> result.passed
+                hasError -> false
+                else -> null
+            },
             timedOut = result.timedOut,
             result = result,
             elapsedMs = result.elapsedMs,
