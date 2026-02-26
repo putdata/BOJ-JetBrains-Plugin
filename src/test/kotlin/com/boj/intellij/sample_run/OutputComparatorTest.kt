@@ -73,6 +73,24 @@ class ProcessSampleRunServiceTest {
     }
 
     @Test
+    fun `measures elapsed time in result`() {
+        val service = ProcessSampleRunService(command = "cat", timeoutMillis = 5_000)
+        val result = service.runSample(SampleCase(input = "hi\n", expectedOutput = "hi\n"))
+
+        assertTrue(result.elapsedMs >= 0)
+        assertTrue(result.elapsedMs < 5_000, "Elapsed should be reasonable, was ${result.elapsedMs}ms")
+    }
+
+    @Test
+    fun `timed out result includes elapsed time`() {
+        val service = ProcessSampleRunService(command = "sh -c \"sleep 2\"", timeoutMillis = 100)
+        val result = service.runSample(SampleCase(input = "", expectedOutput = ""))
+
+        assertTrue(result.timedOut)
+        assertTrue(result.elapsedMs >= 100, "Should have waited at least timeout, was ${result.elapsedMs}ms")
+    }
+
+    @Test
     fun `runs command in provided working directory`() {
         val workingDirectory = createTempDirectory("sample-run-working-dir").toFile()
         workingDirectory.resolve("input.txt").writeText("42\n")

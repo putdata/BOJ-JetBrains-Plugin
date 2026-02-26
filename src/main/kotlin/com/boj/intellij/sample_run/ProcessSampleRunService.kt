@@ -11,6 +11,7 @@ class ProcessSampleRunService(
     private val outputComparator: OutputComparator = OutputComparator(),
 ) : SampleRunService {
     override fun runSample(sampleCase: SampleCase): SampleRunResult {
+        val startNanos = System.nanoTime()
         return try {
             val tokens = tokenizeCommand(command)
             val processBuilder = ProcessBuilder(tokens)
@@ -28,6 +29,7 @@ class ProcessSampleRunService(
                 process.destroyForcibly()
                 process.waitFor(100, TimeUnit.MILLISECONDS)
 
+                val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
                 val comparison = outputComparator.compare(sampleCase.expectedOutput, "")
                 return SampleRunResult(
                     passed = false,
@@ -37,6 +39,7 @@ class ProcessSampleRunService(
                     exitCode = null,
                     timedOut = true,
                     comparison = comparison,
+                    elapsedMs = elapsedMs,
                 )
             }
 
@@ -44,6 +47,7 @@ class ProcessSampleRunService(
             val standardError = process.errorStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
             val exitCode = process.exitValue()
             val comparison = outputComparator.compare(sampleCase.expectedOutput, actualOutput)
+            val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
 
             SampleRunResult(
                 passed = exitCode == 0 && comparison.passed,
@@ -53,8 +57,10 @@ class ProcessSampleRunService(
                 exitCode = exitCode,
                 timedOut = false,
                 comparison = comparison,
+                elapsedMs = elapsedMs,
             )
         } catch (exception: Exception) {
+            val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
             val comparison = outputComparator.compare(sampleCase.expectedOutput, "")
             SampleRunResult(
                 passed = false,
@@ -64,6 +70,7 @@ class ProcessSampleRunService(
                 exitCode = null,
                 timedOut = false,
                 comparison = comparison,
+                elapsedMs = elapsedMs,
             )
         }
     }
