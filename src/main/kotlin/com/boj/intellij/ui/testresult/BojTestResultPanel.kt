@@ -10,7 +10,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ActionToolbar
-import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.boj.intellij.ui.ActionToolbarCompat.showTextInToolbar
 import com.boj.intellij.ui.ActionToolbarCompat.updateActionsSafe
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
@@ -361,7 +361,7 @@ class BojTestResultPanel(
         AllIcons.Actions.Execute,
     ) {
         init {
-            templatePresentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
+            templatePresentation.showTextInToolbar()
         }
 
         override fun actionPerformed(e: AnActionEvent) {
@@ -379,7 +379,7 @@ class BojTestResultPanel(
         AllIcons.Actions.Suspend,
     ) {
         init {
-            templatePresentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
+            templatePresentation.showTextInToolbar()
         }
 
         override fun actionPerformed(e: AnActionEvent) {
@@ -393,9 +393,7 @@ class BojTestResultPanel(
 
     private inner class SummaryAction : AnAction() {
         init {
-            templatePresentation.putClientProperty(
-                ActionUtil.SHOW_TEXT_IN_TOOLBAR, true
-            )
+            templatePresentation.showTextInToolbar()
             templatePresentation.text = " 실행 대기 중"
         }
 
