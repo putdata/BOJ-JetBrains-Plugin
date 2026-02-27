@@ -387,46 +387,39 @@ class BojToolWindowPanel(
     private fun handleRunSingle(key: TestCaseKey, command: String) {
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         runOnEdt {
-            findTestResultPanel()?.setRunning(key)
-            findTestResultPanel()?.setRunningState(true)
+            val panel = findTestResultPanel()
+            panel?.setRunning(key)
+            panel?.setRunningState(true)
         }
 
-        when (key) {
-            is TestCaseKey.Sample -> {
-                val sample = currentSamples.getOrNull(key.index) ?: return
-                val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
-                try {
-                    val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-                    runOnEdt {
-                        sendResult(key.index, result)
-                        findTestResultPanel()?.setRunningState(false)
+        try {
+            when (key) {
+                is TestCaseKey.Sample -> {
+                    val sample = currentSamples.getOrNull(key.index) ?: return
+                    val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
+                    try {
+                        val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                        runOnEdt { sendResult(key.index, result) }
+                    } catch (exception: Exception) {
+                        val message = exception.message ?: exception::class.simpleName.orEmpty()
+                        runOnEdt { sendResult(key.index, createErrorResult(sample.output, message)) }
                     }
-                } catch (exception: Exception) {
-                    val message = exception.message ?: exception::class.simpleName.orEmpty()
-                    runOnEdt {
-                        sendResult(key.index, createErrorResult(sample.output, message))
-                        findTestResultPanel()?.setRunningState(false)
+                }
+                is TestCaseKey.Custom -> {
+                    val problemId = currentProblemNumber ?: return
+                    val case = customTestCaseRepository.load(problemId)[key.name] ?: return
+                    val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput ?: "")
+                    try {
+                        val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                        runOnEdt { findTestResultService()?.addResult(key, result) }
+                    } catch (exception: Exception) {
+                        val message = exception.message ?: exception::class.simpleName.orEmpty()
+                        runOnEdt { findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message)) }
                     }
                 }
             }
-            is TestCaseKey.Custom -> {
-                val problemId = currentProblemNumber ?: return
-                val case = customTestCaseRepository.load(problemId)[key.name] ?: return
-                val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput ?: "")
-                try {
-                    val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-                    runOnEdt {
-                        findTestResultService()?.addResult(key, result)
-                        findTestResultPanel()?.setRunningState(false)
-                    }
-                } catch (exception: Exception) {
-                    val message = exception.message ?: exception::class.simpleName.orEmpty()
-                    runOnEdt {
-                        findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message))
-                        findTestResultPanel()?.setRunningState(false)
-                    }
-                }
-            }
+        } finally {
+            runOnEdt { findTestResultPanel()?.setRunningState(false) }
         }
     }
 
