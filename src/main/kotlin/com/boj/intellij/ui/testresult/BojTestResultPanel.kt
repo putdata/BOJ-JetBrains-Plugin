@@ -52,9 +52,7 @@ class BojTestResultPanel(
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
     private val resultList = JBList(listModel)
-    private val summaryLabel = JBLabel("실행 대기 중").apply {
-        border = BorderFactory.createEmptyBorder(0, 4, 0, 0)
-    }
+    private var summaryText = "실행 대기 중"
     private val inputArea = createReadOnlyTextArea()
     private val expectedArea = createReadOnlyTextArea()
     private val actualArea = createReadOnlyTextArea()
@@ -105,7 +103,7 @@ class BojTestResultPanel(
             }
 
             override fun onRunAllComplete(passedCount: Int, totalCount: Int) {
-                summaryLabel.text = "$passedCount / $totalCount 통과"
+                summaryText = "$passedCount / $totalCount 통과"
             }
 
             override fun onResult(key: TestCaseKey, result: SampleRunResult) {
@@ -127,7 +125,7 @@ class BojTestResultPanel(
         if (listModel.size() > 0) {
             resultList.selectedIndex = 0
         }
-        summaryLabel.text = "실행 대기 중"
+        summaryText = "실행 대기 중"
         inputArea.text = ""
         expectedArea.text = ""
         actualArea.text = ""
@@ -247,7 +245,7 @@ class BojTestResultPanel(
                 i,
             )
         }
-        summaryLabel.text = "실행 대기 중"
+        summaryText = "실행 대기 중"
         inputArea.text = ""
         expectedArea.text = ""
         actualArea.text = ""
@@ -323,7 +321,7 @@ class BojTestResultPanel(
         menu.show(resultList, e.x, e.y)
     }
 
-    fun createTitleActions(): List<AnAction> = listOf(RunAllAction(), StopAction(), SummaryAction())
+    val titleActions: List<AnAction> by lazy { listOf(RunAllAction(), StopAction(), SummaryAction()) }
 
     fun setRunningState(running: Boolean) {
         isRunning = running
@@ -376,7 +374,7 @@ class BojTestResultPanel(
 
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = false
-            e.presentation.text = summaryLabel.text
+            e.presentation.text = summaryText
         }
 
         override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
