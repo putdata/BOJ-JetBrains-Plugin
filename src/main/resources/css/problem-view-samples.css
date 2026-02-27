@@ -1,7 +1,7 @@
 .sample-group {
   margin: 16px 0;
   padding: 12px;
-  border: 1px solid var(--border);
+  background: var(--code-bg);
   border-radius: 6px;
 }
 .sample-header {
@@ -26,7 +26,7 @@
 .sample-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--meta-fg);
+  color: var(--fg);
   margin-bottom: 4px;
 }
 .sample-code pre {
@@ -54,6 +54,11 @@
 }
 .run-btn:active {
   background: rgba(128, 128, 128, 0.25);
+}
+.sample-explain {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.6;
 }
 @media (max-width: 400px) {
   .sample-columns {

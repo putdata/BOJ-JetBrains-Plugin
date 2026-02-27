@@ -12,8 +12,6 @@ h1 {
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 8px;
-  padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--border);
   color: var(--heading-fg);
 }
 
@@ -52,19 +50,11 @@ p {
   margin-right: 12px;
 }
 
-hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 16px 0;
-  height: 0.25em;
-  padding: 0;
-}
-
 /* blockquote - GitHub style */
 blockquote {
   margin: 0 0 16px;
   padding: 0 1em;
-  color: var(--meta-fg);
+  color: var(--fg);
   border-left: 0.25em solid var(--border);
 }
 blockquote > :first-child {
