@@ -317,7 +317,7 @@ class BojTestResultPanel(
         return JTextArea().apply {
             isEditable = false
             lineWrap = false
-            font = Font("JetBrains Mono", Font.PLAIN, 12)
+            font = com.intellij.util.ui.JBUI.Fonts.create(Font.MONOSPACED, 12)
             border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
         }
     }
