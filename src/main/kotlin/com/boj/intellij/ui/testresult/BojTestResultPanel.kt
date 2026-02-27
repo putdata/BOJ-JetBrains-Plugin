@@ -199,13 +199,14 @@ class BojTestResultPanel(
         panel.add(createSectionLabel("실행 결과"), c)
 
         // 컨텐츠 행 (gridy=1) - 3칸 가로 배치
+        // preferredSize를 (0,0)으로 설정하여 텍스트 내용에 관계없이 weightx 비율로만 너비 결정
         c.gridy = 1; c.weighty = 1.0
         c.gridx = 0; c.weightx = 0.25; c.insets = Insets(0, 0, 0, 4)
-        panel.add(JBScrollPane(inputArea), c)
+        panel.add(JBScrollPane(inputArea).apply { preferredSize = java.awt.Dimension(0, 0) }, c)
         c.gridx = 1; c.weightx = 0.25; c.insets = Insets(0, 4, 0, 4)
-        panel.add(JBScrollPane(expectedArea), c)
+        panel.add(JBScrollPane(expectedArea).apply { preferredSize = java.awt.Dimension(0, 0) }, c)
         c.gridx = 2; c.weightx = 0.5; c.insets = Insets(0, 4, 0, 0)
-        panel.add(JBScrollPane(actualArea), c)
+        panel.add(JBScrollPane(actualArea).apply { preferredSize = java.awt.Dimension(0, 0) }, c)
 
         return panel
     }
