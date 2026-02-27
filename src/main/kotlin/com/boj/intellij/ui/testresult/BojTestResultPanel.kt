@@ -4,6 +4,11 @@ import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionToolbar
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon
@@ -42,7 +47,7 @@ class BojTestResultPanel(
     var onStop: () -> Unit = {}
 
     private var isRunning = false
-    private var leftToolbar: com.intellij.openapi.actionSystem.ActionToolbar? = null
+    private var leftToolbar: ActionToolbar? = null
 
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
@@ -316,6 +321,62 @@ class BojTestResultPanel(
     fun setRunningState(running: Boolean) {
         isRunning = running
         leftToolbar?.updateActionsImmediately()
+    }
+
+    private inner class RunAllAction : AnAction(
+        "전체 실행",
+        "모든 테스트 케이스 실행",
+        AllIcons.Actions.Execute,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            onRunAll()
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = !isRunning
+        }
+
+        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
+    }
+
+    private inner class StopAction : AnAction(
+        "중지",
+        "실행 중인 테스트 중지",
+        AllIcons.Actions.Suspend,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            onStop()
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = isRunning
+        }
+
+        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
+    }
+
+    private inner class AddCustomAction : AnAction(
+        "커스텀 추가",
+        "커스텀 테스트 케이스 추가",
+        AllIcons.General.Add,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            onAddCustom()
+        }
+
+        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
+    }
+
+    private inner class ManageCustomAction : AnAction(
+        "관리",
+        "커스텀 테스트 케이스 관리",
+        AllIcons.Actions.Edit,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            onManageCustom()
+        }
+
+        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
     }
 
     override fun dispose() {}
