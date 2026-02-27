@@ -21,6 +21,7 @@ import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
@@ -373,6 +374,7 @@ class BojToolWindowPanel(
     }
 
     private fun handleRunSingle(key: TestCaseKey, command: String) {
+        saveActiveEditorDocument()
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         runOnEdt {
             val panel = findTestResultPanel()
@@ -412,6 +414,7 @@ class BojToolWindowPanel(
     }
 
     private fun handleRunAll(command: String) {
+        saveActiveEditorDocument()
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         var passedCount = 0
         var judgedCount = 0
@@ -640,6 +643,13 @@ class BojToolWindowPanel(
         currentParsedProblem = null
         currentProblemNumber = null
         lastFetchedProblemNumber = null
+    }
+
+    private fun saveActiveEditorDocument() {
+        runOnEdt {
+            val editor = FileEditorManager.getInstance(project).selectedTextEditor
+            editor?.document?.let { FileDocumentManager.getInstance().saveDocument(it) }
+        }
     }
 
     private fun runInBackground(task: () -> Unit) {
