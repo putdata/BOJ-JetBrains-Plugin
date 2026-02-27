@@ -45,16 +45,6 @@ object ProblemViewHtmlBuilder {
                 $baseCss
                 $sampleCss
               </style>
-              <script>
-                window.MathJax = {
-                  tex: {
-                    inlineMath: [['$', '$'], ['\\(', '\\)']],
-                    displayMath: [['$$', '$$'], ['\\[', '\\]']]
-                  },
-                  svg: { fontCache: 'global' }
-                };
-              </script>
-              <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
             </head>
             <body>
               <header>
@@ -80,6 +70,17 @@ object ProblemViewHtmlBuilder {
               </section>
               $samplesHtml
               $bridgeScript
+              <script>
+                window.MathJax = {
+                  loader: { load: [] },
+                  tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                  },
+                  svg: { fontCache: 'global' }
+                };
+              </script>
+              <script>${MATHJAX_SCRIPT}</script>
             </body>
             </html>
         """.trimIndent()
@@ -172,4 +173,11 @@ object ProblemViewHtmlBuilder {
 
     private val SCRIPT_TAG_REGEX = Regex("(?is)<script[^>]*>.*?</script>")
     private val STYLE_TAG_REGEX = Regex("(?is)<style[^>]*>.*?</style>")
+
+    private val MATHJAX_SCRIPT: String by lazy {
+        ProblemViewHtmlBuilder::class.java.getResourceAsStream("/js/tex-svg-full.js")
+            ?.reader()
+            ?.readText()
+            ?: ""
+    }
 }

@@ -100,8 +100,9 @@ class ProblemViewHtmlBuilderTest {
             colors = defaultColors,
         )
 
-        assertTrue(html.contains("mathjax@3"))
-        assertTrue(html.contains("tex-svg.js"))
+        assertTrue(html.contains("window.MathJax"))
+        assertTrue(html.contains("tex-svg-full.js").not(), "CDN 참조가 아닌 내장 스크립트여야 함")
+        assertTrue(html.contains("<script>") && html.contains("MathJax"))
     }
 
     @Test
