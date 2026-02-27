@@ -44,6 +44,8 @@ object ProblemViewHtmlBuilder {
               --pass-bg: ${colors.passBg}; --pass-fg: ${colors.passFg};
               --fail-bg: ${colors.failBg}; --fail-fg: ${colors.failFg};
               --fail-border: ${colors.failBorder};
+              --scrollbar-thumb: ${colors.scrollbarThumb};
+              --scrollbar-hover: ${colors.scrollbarHover};
             }
         """.trimIndent()
 

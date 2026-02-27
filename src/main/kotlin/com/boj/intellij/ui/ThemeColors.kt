@@ -10,12 +10,14 @@ data class ThemeColors(
     val editorBg: String,
     val editorFg: String,
     val secondaryFg: String,
-    val sampleBg: String,
+    val sampleBg: String = "#f2f2f2",
     val passBg: String = "#d4edda",
     val passFg: String = "#155724",
     val failBg: String = "#f8d7da",
     val failFg: String = "#721c24",
     val failBorder: String = "#dc3545",
+    val scrollbarThumb: String = "rgba(0,0,0,0.2)",
+    val scrollbarHover: String = "rgba(0,0,0,0.4)",
 ) {
     companion object {
         fun fromCurrentTheme(): ThemeColors {
@@ -35,6 +37,8 @@ data class ThemeColors(
                 failBg = if (isDark) "#3a1a1a" else "#f8d7da",
                 failFg = if (isDark) "#FF8A80" else "#721c24",
                 failBorder = if (isDark) "#FF8A80" else "#dc3545",
+                scrollbarThumb = if (isDark) "rgba(255,255,255,0.28)" else "rgba(0,0,0,0.18)",
+                scrollbarHover = if (isDark) "rgba(255,255,255,0.50)" else "rgba(0,0,0,0.38)",
             )
         }
 
