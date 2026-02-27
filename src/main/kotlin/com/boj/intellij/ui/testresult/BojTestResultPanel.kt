@@ -52,7 +52,9 @@ class BojTestResultPanel(
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
     private val resultList = JBList(listModel)
-    private val summaryLabel = JBLabel("실행 대기 중")
+    private val summaryLabel = JBLabel("실행 대기 중").apply {
+        border = BorderFactory.createEmptyBorder(0, 4, 0, 0)
+    }
     private val inputArea = createReadOnlyTextArea()
     private val expectedArea = createReadOnlyTextArea()
     private val actualArea = createReadOnlyTextArea()
@@ -64,17 +66,7 @@ class BojTestResultPanel(
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
 
-        val summaryPanel = JPanel(BorderLayout())
-        summaryPanel.add(summaryLabel, BorderLayout.WEST)
-        val summaryButtonPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 4, 0))
-        val addCustomButton = javax.swing.JButton("+ 커스텀")
-        val manageButton = javax.swing.JButton("관리")
-        addCustomButton.addActionListener { onAddCustom() }
-        manageButton.addActionListener { onManageCustom() }
-        summaryButtonPanel.add(addCustomButton)
-        summaryButtonPanel.add(manageButton)
-        summaryPanel.add(summaryButtonPanel, BorderLayout.EAST)
-        add(summaryPanel, BorderLayout.NORTH)
+        add(buildHeaderPanel(), BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
 
         resultList.cellRenderer = TestResultCellRenderer()
@@ -157,6 +149,29 @@ class BojTestResultPanel(
             val entry = listModel.getElementAt(i)
             listModel.setElementAt(entry.copy(running = true, result = null, passed = null, elapsedMs = null), i)
         }
+    }
+
+    private fun buildHeaderPanel(): JPanel {
+        val headerPanel = JPanel(BorderLayout())
+
+        // 좌측: ActionToolbar + summaryLabel
+        val leftGroup = DefaultActionGroup().apply {
+            add(RunAllAction())
+            add(StopAction())
+        }
+        val toolbar = ActionManager.getInstance()
+            .createActionToolbar("BojTestResultHeader", leftGroup, true)
+        toolbar.targetComponent = this
+        leftToolbar = toolbar
+
+        val leftPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0))
+        leftPanel.isOpaque = false
+        leftPanel.add(toolbar.component)
+        leftPanel.add(summaryLabel)
+
+        headerPanel.add(leftPanel, BorderLayout.WEST)
+
+        return headerPanel
     }
 
     private fun buildListPanel(): JPanel {
