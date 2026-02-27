@@ -3,10 +3,10 @@ package com.boj.intellij.ui
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
-import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.boj.intellij.ui.ActionToolbarCompat.updateActionsSafe
 import com.intellij.ui.JBColor
 import java.awt.BorderLayout
 import java.awt.Color
@@ -82,7 +82,7 @@ class RunBarPanel(
     fun setAvailableCommands(commands: List<CommandEntry>) {
         commandComboBox.removeAllItems()
         commands.forEach { commandComboBox.addItem(it) }
-        toolbar?.updateActionsAsync()
+        toolbar?.updateActionsSafe()
     }
 
     fun getSelectedCommand(): String? {
@@ -112,7 +112,7 @@ class RunBarPanel(
 
     fun setRunning(running: Boolean) {
         isRunning = running
-        toolbar?.updateActionsAsync()
+        toolbar?.updateActionsSafe()
         if (running) {
             statusLabel.text = "실행 중..."
         }
@@ -137,8 +137,6 @@ class RunBarPanel(
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = !isRunning && commandComboBox.itemCount > 0
         }
-
-        override fun getActionUpdateThread() = ActionUpdateThread.EDT
     }
 
     private inner class StopAction : AnAction(
@@ -153,8 +151,6 @@ class RunBarPanel(
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = isRunning
         }
-
-        override fun getActionUpdateThread() = ActionUpdateThread.EDT
     }
 
     companion object {
