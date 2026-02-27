@@ -20,7 +20,7 @@ dependencies {
     testRuntimeOnly("junit:junit:4.13.2")
 
     intellijPlatform {
-        intellijIdeaUltimate("2025.3.3")
+        intellijIdeaCommunity("2024.3")
     }
 }
 
@@ -29,7 +29,7 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(11)
 }
 
 intellijPlatform {
@@ -37,8 +37,7 @@ intellijPlatform {
         name = "BOJ IntelliJ"
         description = "BOJ problem fetch and sample-run helper plugin scaffold."
         ideaVersion {
-            sinceBuild = "253"
-            untilBuild = "253.*"
+            sinceBuild = "213"
         }
     }
 }
