@@ -15,6 +15,10 @@ data class ParsedProblem(
     val inputDescriptionHtml: String,
     val outputDescriptionHtml: String,
     val samplePairs: List<ParsedSamplePair>,
+    val limitHtml: String = "",
+    val subtaskHtml: String = "",
+    val hintHtml: String = "",
+    val sampleExplains: Map<Int, String> = emptyMap(),
 ) {
     val mainBody: String
         get() =
