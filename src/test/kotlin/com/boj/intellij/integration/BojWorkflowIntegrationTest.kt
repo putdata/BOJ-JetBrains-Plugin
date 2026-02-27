@@ -43,6 +43,9 @@ class BojWorkflowIntegrationTest {
         assertEquals("6789", parsed.answerCount)
         assertEquals("6000", parsed.solvedCount)
         assertEquals("54.123%", parsed.correctRate)
+        assertTrue(parsed.limitHtml.contains("0 &lt; A, B &lt; 10") || parsed.limitHtml.contains("0 < A, B < 10"))
+        assertEquals(1, parsed.sampleExplains.size)
+        assertTrue(parsed.sampleExplains[1]!!.contains("1 + 2 = 3이다."))
         assertEquals("두 정수 A와 B를 입력받은 다음, A+B를 출력하는 프로그램을 작성하시오.", parsed.problemDescription)
         assertEquals("첫째 줄에 A와 B가 주어진다.", parsed.inputDescription)
         assertEquals("첫째 줄에 A+B를 출력한다.", parsed.outputDescription)
@@ -265,8 +268,17 @@ class BojWorkflowIntegrationTest {
               <h2>출력</h2>
               <p>첫째 줄에 A+B를 출력한다.</p>
             </section>
+            <section id="problem_limit">
+              <h2>제한</h2>
+              <ul><li>0 &lt; A, B &lt; 10</li></ul>
+            </section>
             <section id="sampleinput1"><pre>1 2</pre></section>
             <section id="sampleoutput1"><pre>3</pre></section>
+            <section id="sample_explain_1">
+              <div id="problem_sample_explain_1" class="problem-text">
+                <p>1 + 2 = 3이다.</p>
+              </div>
+            </section>
             <section id="sampleinput2"><pre>10 20</pre></section>
             <section id="sampleoutput2"><pre>30</pre></section>
           </body>
