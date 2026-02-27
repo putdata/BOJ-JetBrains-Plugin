@@ -13,5 +13,7 @@ class BojTestResultToolWindowFactory : ToolWindowFactory, DumbAware {
         val content = contentFactory.createContent(panel, "", false)
         content.setDisposer(panel)
         toolWindow.contentManager.addContent(content)
+
+        toolWindow.setTitleActions(panel.titleActions)
     }
 }
