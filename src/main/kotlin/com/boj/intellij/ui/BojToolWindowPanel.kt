@@ -87,6 +87,7 @@ class BojToolWindowPanel(
     private val runBarPanel = RunBarPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
         onStop = { handleStop() },
+        onCopyForSubmit = { handleCopyForSubmit() },
     )
 
     @Volatile
@@ -643,6 +644,19 @@ class BojToolWindowPanel(
         currentParsedProblem = null
         currentProblemNumber = null
         lastFetchedProblemNumber = null
+    }
+
+    private fun handleCopyForSubmit() {
+        val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+        val document = editor.document
+        val code = document.text
+        val virtualFile = FileDocumentManager.getInstance().getFile(document)
+        val extension = virtualFile?.extension
+
+        val transformed = CopyForSubmitUtil.transformForSubmit(code, extension)
+
+        val selection = java.awt.datatransfer.StringSelection(transformed)
+        java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
     }
 
     private fun saveActiveEditorDocument() {

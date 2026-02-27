@@ -10,12 +10,14 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.ui.JBColor
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Cursor
 import java.awt.FlowLayout
+import java.util.Timer
 import javax.swing.BorderFactory
+import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JPanel
-import java.util.Timer
 import kotlin.concurrent.schedule
 
 class RunBarPanel(
@@ -36,6 +38,7 @@ class RunBarPanel(
 
     private var isRunning = false
     private var toolbar: ActionToolbar? = null
+    private val copyButton = JButton("코드 복사", AllIcons.Actions.Copy)
 
     init {
         border = BorderFactory.createCompoundBorder(
@@ -63,15 +66,17 @@ class RunBarPanel(
 
         add(leftPanel, BorderLayout.WEST)
 
-        runCatching {
-            val copyGroup = DefaultActionGroup().apply {
-                add(CopyForSubmitAction())
+        copyButton.apply {
+            toolTipText = "백준 제출용 코드 복사 (Java: 클래스명→Main)"
+            isBorderPainted = false
+            isContentAreaFilled = false
+            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            addActionListener {
+                onCopyForSubmit()
+                showCopyFeedback()
             }
-            val copyToolbar = ActionManager.getInstance()
-                .createActionToolbar("BojRunBarCopy", copyGroup, true)
-            copyToolbar.targetComponent = this
-            add(copyToolbar.component, BorderLayout.EAST)
         }
+        add(copyButton, BorderLayout.EAST)
     }
 
     fun setAvailableCommands(commands: List<CommandEntry>) {
@@ -88,13 +93,12 @@ class RunBarPanel(
         statusLabel.text = text
     }
 
-    fun showCopyFeedback() {
-        val previousText = statusLabel.text
-        statusLabel.text = "복사됨"
+    private fun showCopyFeedback() {
+        copyButton.text = "복사됨"
         Timer().schedule(2000) {
             javax.swing.SwingUtilities.invokeLater {
-                if (statusLabel.text == "복사됨") {
-                    statusLabel.text = previousText
+                if (copyButton.text == "복사됨") {
+                    copyButton.text = "코드 복사"
                 }
             }
         }
@@ -148,18 +152,6 @@ class RunBarPanel(
 
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = isRunning
-        }
-
-        override fun getActionUpdateThread() = ActionUpdateThread.EDT
-    }
-
-    private inner class CopyForSubmitAction : AnAction(
-        "제출용 복사",
-        "백준 제출용 코드 복사 (Java: 클래스명→Main)",
-        AllIcons.Actions.Copy,
-    ) {
-        override fun actionPerformed(e: AnActionEvent) {
-            onCopyForSubmit()
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
