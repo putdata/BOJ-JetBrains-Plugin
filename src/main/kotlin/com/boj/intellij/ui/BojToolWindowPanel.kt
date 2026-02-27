@@ -83,7 +83,6 @@ class BojToolWindowPanel(
 
     private val runBarPanel = RunBarPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
-        onAddCustom = { showAddCustomTestCaseDialog() },
         onStop = { handleStop() },
     )
 
