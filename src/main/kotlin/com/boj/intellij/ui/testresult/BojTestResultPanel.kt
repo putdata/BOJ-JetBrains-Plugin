@@ -176,6 +176,16 @@ class BojTestResultPanel(
 
     private fun buildListPanel(): JPanel {
         val panel = JPanel(BorderLayout())
+
+        val listActionGroup = DefaultActionGroup().apply {
+            add(AddCustomAction())
+            add(ManageCustomAction())
+        }
+        val listToolbar = ActionManager.getInstance()
+            .createActionToolbar("BojTestResultListHeader", listActionGroup, true)
+        listToolbar.targetComponent = this
+
+        panel.add(listToolbar.component, BorderLayout.NORTH)
         panel.add(JBScrollPane(resultList), BorderLayout.CENTER)
         return panel
     }
