@@ -198,6 +198,7 @@ class BojToolWindowPanel(
                 object : FileEditorManagerListener {
                     override fun selectionChanged(event: FileEditorManagerEvent) {
                         autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
+                        updateRunBarCommands()
                     }
                 },
             )
@@ -297,21 +298,7 @@ class BojToolWindowPanel(
         problemViewFallbackArea.text = ProblemViewHtmlBuilder.buildFallbackText(problem = problem, problemNumber = number)
         currentSamples = problem.samplePairs
 
-        // RunBarPanel에 사용 가능한 명령어 설정
-        val commands = mutableListOf<RunBarPanel.CommandEntry>()
-        val inferredCommand = resolveCurrentFileRunCommand()
-        if (inferredCommand != null) {
-            val selectedFilePath = runCatching {
-                FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
-            }.getOrNull()
-            val displayName = if (selectedFilePath != null) {
-                "(자동) ${RunConfigurationCommandResolver.getDisplayName(selectedFilePath)}"
-            } else {
-                "(자동 감지)"
-            }
-            commands.add(RunBarPanel.CommandEntry(displayName, inferredCommand))
-        }
-        runBarPanel.setAvailableCommands(commands)
+        updateRunBarCommands()
         runBarPanel.updateStatus("실행 대기 중")
 
         // 하단 ToolWindow에 예제 정보 전달
@@ -616,6 +603,23 @@ class BojToolWindowPanel(
     private fun setFetchStatus(message: String, isError: Boolean) {
         fetchStatusLabel.text = message
         fetchStatusLabel.foreground = if (isError) failColor else baseLabelColor
+    }
+
+    private fun updateRunBarCommands() {
+        val commands = mutableListOf<RunBarPanel.CommandEntry>()
+        val inferredCommand = resolveCurrentFileRunCommand()
+        if (inferredCommand != null) {
+            val selectedFilePath = runCatching {
+                FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
+            }.getOrNull()
+            val displayName = if (selectedFilePath != null) {
+                "(자동) ${RunConfigurationCommandResolver.getDisplayName(selectedFilePath)}"
+            } else {
+                "(자동 감지)"
+            }
+            commands.add(RunBarPanel.CommandEntry(displayName, inferredCommand))
+        }
+        runBarPanel.setAvailableCommands(commands)
     }
 
     private fun resolveCurrentFileRunCommand(): String? {
