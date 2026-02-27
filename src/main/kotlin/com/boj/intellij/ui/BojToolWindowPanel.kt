@@ -386,7 +386,10 @@ class BojToolWindowPanel(
 
     private fun handleRunSingle(key: TestCaseKey, command: String) {
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
-        runOnEdt { findTestResultPanel()?.setRunning(key) }
+        runOnEdt {
+            findTestResultPanel()?.setRunning(key)
+            findTestResultPanel()?.setRunningState(true)
+        }
 
         when (key) {
             is TestCaseKey.Sample -> {
@@ -394,10 +397,16 @@ class BojToolWindowPanel(
                 val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
                 try {
                     val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-                    runOnEdt { sendResult(key.index, result) }
+                    runOnEdt {
+                        sendResult(key.index, result)
+                        findTestResultPanel()?.setRunningState(false)
+                    }
                 } catch (exception: Exception) {
                     val message = exception.message ?: exception::class.simpleName.orEmpty()
-                    runOnEdt { sendResult(key.index, createErrorResult(sample.output, message)) }
+                    runOnEdt {
+                        sendResult(key.index, createErrorResult(sample.output, message))
+                        findTestResultPanel()?.setRunningState(false)
+                    }
                 }
             }
             is TestCaseKey.Custom -> {
@@ -406,10 +415,16 @@ class BojToolWindowPanel(
                 val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput ?: "")
                 try {
                     val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-                    runOnEdt { findTestResultService()?.addResult(key, result) }
+                    runOnEdt {
+                        findTestResultService()?.addResult(key, result)
+                        findTestResultPanel()?.setRunningState(false)
+                    }
                 } catch (exception: Exception) {
                     val message = exception.message ?: exception::class.simpleName.orEmpty()
-                    runOnEdt { findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message)) }
+                    runOnEdt {
+                        findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message))
+                        findTestResultPanel()?.setRunningState(false)
+                    }
                 }
             }
         }
@@ -423,6 +438,7 @@ class BojToolWindowPanel(
 
         runOnEdt {
             runBarPanel.setRunning(true)
+            findTestResultPanel()?.setRunningState(true)
             findTestResultService()?.clearResults()
             findTestResultPanel()?.setAllRunning()
         }
@@ -484,6 +500,7 @@ class BojToolWindowPanel(
         val wasCancelled = cancelRequested
         runOnEdt {
             runBarPanel.setRunning(false)
+            findTestResultPanel()?.setRunningState(false)
             if (wasCancelled) {
                 runBarPanel.updateStatus("중지됨")
             } else {
@@ -558,6 +575,11 @@ class BojToolWindowPanel(
             val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand() ?: DEFAULT_RUN_COMMAND
             runInBackground { handleRunSingle(key, command) }
         }
+        panel.onRunAll = {
+            val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand() ?: DEFAULT_RUN_COMMAND
+            runInBackground { handleRunAll(command) }
+        }
+        panel.onStop = { handleStop() }
     }
 
     private fun showEditCustomTestCaseDialog(name: String) {
