@@ -17,6 +17,18 @@ object ProblemViewHtmlBuilder {
         val samplesHtml = buildSamplesHtml(problem)
         val bridgeScript = if (hasSamples) buildBridgeScript(cefQueryInjection) else ""
 
+        val limitSectionHtml = if (problem.limitHtml.isNotBlank()) {
+            "<section><h2>제한</h2>${problem.limitHtml}</section>"
+        } else ""
+
+        val subtaskSectionHtml = if (problem.subtaskHtml.isNotBlank()) {
+            "<section><h2>서브태스크</h2>${problem.subtaskHtml}</section>"
+        } else ""
+
+        val hintSectionHtml = if (problem.hintHtml.isNotBlank()) {
+            "<section><h2>힌트</h2>${problem.hintHtml}</section>"
+        } else ""
+
         val baseCss = loadCssResource("/css/problem-view.css")
         val themeVars = """
             :root {
@@ -55,7 +67,6 @@ object ProblemViewHtmlBuilder {
                   <span>정답률 ${escapeHtml(problem.correctRate)}</span>
                 </div>
               </header>
-              <hr>
               <section>
                 <h2>문제</h2>
                 $sanitizedProblemHtml
@@ -68,7 +79,10 @@ object ProblemViewHtmlBuilder {
                 <h2>출력</h2>
                 $sanitizedOutputHtml
               </section>
+              $limitSectionHtml
+              $subtaskSectionHtml
               $samplesHtml
+              $hintSectionHtml
               $bridgeScript
               <script>
                 window.MathJax = {
@@ -124,6 +138,10 @@ object ProblemViewHtmlBuilder {
                 appendLine("""      <div class="sample-code"><pre>${escapeHtml(pair.output)}</pre></div>""")
                 appendLine("""    </div>""")
                 appendLine("""  </div>""")
+                val explain = problem.sampleExplains[num]
+                if (!explain.isNullOrBlank()) {
+                    appendLine("""  <div class="sample-explain">$explain</div>""")
+                }
                 appendLine("""</div>""")
             }
         }
