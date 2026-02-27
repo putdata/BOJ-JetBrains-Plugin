@@ -10,6 +10,7 @@ data class ThemeColors(
     val editorBg: String,
     val editorFg: String,
     val secondaryFg: String,
+    val sampleBg: String,
     val passBg: String = "#d4edda",
     val passFg: String = "#155724",
     val failBg: String = "#f8d7da",
@@ -28,12 +29,20 @@ data class ThemeColors(
                 editorBg = (UIManager.getColor("EditorPane.background") ?: Color(0xF6F8FA)).toCssHex(),
                 editorFg = (UIManager.getColor("EditorPane.foreground") ?: Color(0x1F2328)).toCssHex(),
                 secondaryFg = (UIManager.getColor("Label.disabledForeground") ?: Color(0x666666)).toCssHex(),
+                sampleBg = shiftBrightness(bg, if (isDark) 0.08 else -0.04).toCssHex(),
                 passBg = if (isDark) "#1a3a2a" else "#d4edda",
                 passFg = if (isDark) "#8DD694" else "#155724",
                 failBg = if (isDark) "#3a1a1a" else "#f8d7da",
                 failFg = if (isDark) "#FF8A80" else "#721c24",
                 failBorder = if (isDark) "#FF8A80" else "#dc3545",
             )
+        }
+
+        private fun shiftBrightness(color: Color, amount: Double): Color {
+            val r = (color.red + 255 * amount).toInt().coerceIn(0, 255)
+            val g = (color.green + 255 * amount).toInt().coerceIn(0, 255)
+            val b = (color.blue + 255 * amount).toInt().coerceIn(0, 255)
+            return Color(r, g, b)
         }
 
         private fun isDarkTheme(bg: Color): Boolean {

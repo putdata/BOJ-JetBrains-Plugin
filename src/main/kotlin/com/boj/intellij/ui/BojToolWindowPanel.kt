@@ -20,11 +20,13 @@ import com.boj.intellij.ui.custom.ManageCustomTestCasesDialog
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.jcef.JBCefApp
@@ -90,6 +92,7 @@ class BojToolWindowPanel(
     private var cancelRequested = false
 
     private var currentSamples: List<ParsedSamplePair> = emptyList()
+    private var currentParsedProblem: ParsedProblem? = null
     private var isFetchInProgress: Boolean = false
     private var lastFetchedProblemNumber: String? = null
     private val customTestCaseRepository: CustomTestCaseRepository by lazy {
@@ -108,6 +111,7 @@ class BojToolWindowPanel(
 
         wireEvents()
         wireCurrentFileTracking()
+        wireThemeChangeListener()
         resetProblemFields()
         setFetchStatus("문제 번호를 입력하거나 현재 클래스명에서 자동 인식해 불러오세요.", isError = false)
         autoFetchProblemFromCurrentClassName()
@@ -169,6 +173,20 @@ class BojToolWindowPanel(
     private fun wireEvents() {
         fetchButton.addActionListener { fetchProblem() }
         problemNumberField.addActionListener { fetchProblem() }
+    }
+
+    private fun wireThemeChangeListener() {
+        runCatching {
+            ApplicationManager.getApplication().messageBus.connect(this).subscribe(
+                LafManagerListener.TOPIC,
+                LafManagerListener {
+                    ApplicationManager.getApplication().invokeLater({
+                        val problem = currentParsedProblem ?: return@invokeLater
+                        bindProblem(problem)
+                    }, ModalityState.any())
+                },
+            )
+        }
     }
 
     private fun wireCurrentFileTracking() {
@@ -268,6 +286,7 @@ class BojToolWindowPanel(
     }
 
     private fun bindProblem(problem: ParsedProblem) {
+        currentParsedProblem = problem
         val colors = ThemeColors.fromCurrentTheme()
         val number = currentProblemNumber ?: ""
         val queryInjection = jsCefQuery?.inject("request") ?: ""
@@ -616,6 +635,7 @@ class BojToolWindowPanel(
         problemViewFallbackArea.text = ""
 
         currentSamples = emptyList()
+        currentParsedProblem = null
         currentProblemNumber = null
         lastFetchedProblemNumber = null
     }

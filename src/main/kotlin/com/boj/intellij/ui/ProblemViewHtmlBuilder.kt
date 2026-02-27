@@ -39,6 +39,7 @@ object ProblemViewHtmlBuilder {
               --code-fg: ${colors.editorFg};
               --heading-fg: ${colors.labelFg};
               --meta-fg: ${colors.secondaryFg};
+              --sample-bg: ${colors.sampleBg};
               --table-stripe: ${colors.editorBg};
               --pass-bg: ${colors.passBg}; --pass-fg: ${colors.passFg};
               --fail-bg: ${colors.failBg}; --fail-fg: ${colors.failFg};
