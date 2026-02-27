@@ -112,7 +112,7 @@ object ProblemViewHtmlBuilder {
                 appendLine("""<div class="sample-group" id="sample-$index">""")
                 appendLine("""  <div class="sample-header">""")
                 appendLine("""    <h3>예제 $num</h3>""")
-                appendLine("""    <button class="run-btn" onclick="runSingle($index)">▶</button>""")
+                appendLine("""    <button class="run-btn" onclick="runSingle($index)" title="실행"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5.5 3v10l7-5z" fill="#59A869"/></svg>실행</button>""")
                 appendLine("""  </div>""")
                 appendLine("""  <div class="sample-columns">""")
                 appendLine("""    <div class="sample-col">""")

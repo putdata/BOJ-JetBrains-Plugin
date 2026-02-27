@@ -35,13 +35,25 @@
   word-break: break-all;
 }
 .run-btn {
-  padding: 2px 8px;
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px 2px 4px;
+  border: none;
   border-radius: 4px;
-  background: var(--bg);
-  color: var(--fg);
+  background: transparent;
   cursor: pointer;
   font-size: 12px;
+  color: var(--meta-fg);
+}
+.run-btn svg {
+  display: block;
+}
+.run-btn:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+.run-btn:active {
+  background: rgba(128, 128, 128, 0.25);
 }
 @media (max-width: 400px) {
   .sample-columns {
