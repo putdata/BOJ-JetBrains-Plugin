@@ -1,8 +1,10 @@
 <idea-plugin>
-    <id>com.boj.intellij</id>
+    <id>app.meot.boj-helper</id>
     <name>BOJ Helper</name>
     <vendor email="put_data@naver.com" url="https://github.com/putdata/BOJ-JetBrains-Plugin">Ikjun Oh</vendor>
     <description><![CDATA[
+    <p>BOJ Helper lets you view Baekjoon Online Judge problems and run sample tests directly in your JetBrains IDE.</p>
+
     <h2>BOJ Helper - 백준 온라인 저지 도우미</h2>
     <p>백준 온라인 저지(BOJ) 문제를 JetBrains IDE에서 바로 보고, 샘플 테스트를 실행할 수 있는 플러그인입니다.</p>
 
