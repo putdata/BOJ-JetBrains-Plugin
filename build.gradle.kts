@@ -40,4 +40,5 @@ intellijPlatform {
             sinceBuild = "213"
         }
     }
+    buildSearchableOptions = false
 }
