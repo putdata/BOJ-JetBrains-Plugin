@@ -4,14 +4,15 @@ import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.intellij.icons.AllIcons
-import com.intellij.ide.ActivityTracker
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.JBColor
 import com.intellij.ui.JBSplitter
@@ -37,7 +38,7 @@ import javax.swing.UIManager
 
 class BojTestResultPanel(
     private val project: Project,
-) : JPanel(BorderLayout()), Disposable {
+) : SimpleToolWindowPanel(false), Disposable {
 
     var onAddCustom: () -> Unit = {}
     var onManageCustom: () -> Unit = {}
@@ -57,14 +58,26 @@ class BojTestResultPanel(
     private val expectedArea = createReadOnlyTextArea()
     private val actualArea = createReadOnlyTextArea()
 
+    private var headerToolbar: ActionToolbar? = null
+
     init {
-        border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
+        val headerGroup = DefaultActionGroup().apply {
+            add(RunAllAction())
+            add(StopAction())
+            add(SummaryAction())
+        }
+        val toolbar = ActionManager.getInstance()
+            .createActionToolbar("BojTestResultHeader", headerGroup, true)
+        toolbar.targetComponent = this
+        headerToolbar = toolbar
+        setToolbar(toolbar.component)
 
         val splitter = JBSplitter(false, 0.15f)
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
+        splitter.border = BorderFactory.createEmptyBorder(0, 4, 4, 4)
 
-        add(splitter, BorderLayout.CENTER)
+        setContent(splitter)
 
         resultList.cellRenderer = TestResultCellRenderer()
         resultList.addListSelectionListener { event ->
@@ -321,18 +334,20 @@ class BojTestResultPanel(
         menu.show(resultList, e.x, e.y)
     }
 
-    val titleActions: List<AnAction> by lazy { listOf(RunAllAction(), StopAction(), SummaryAction()) }
-
     fun setRunningState(running: Boolean) {
         isRunning = running
-        ActivityTracker.getInstance().inc()
+        headerToolbar?.updateActionsAsync()
     }
 
     private inner class RunAllAction : AnAction(
-        "전체 실행",
+        " 전체 실행",
         "모든 테스트 케이스 실행",
         AllIcons.Actions.Execute,
     ) {
+        init {
+            templatePresentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
+        }
+
         override fun actionPerformed(e: AnActionEvent) {
             onRunAll()
         }
@@ -345,10 +360,14 @@ class BojTestResultPanel(
     }
 
     private inner class StopAction : AnAction(
-        "중지",
+        " 중지",
         "실행 중인 테스트 중지",
         AllIcons.Actions.Suspend,
     ) {
+        init {
+            templatePresentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
+        }
+
         override fun actionPerformed(e: AnActionEvent) {
             onStop()
         }
@@ -365,7 +384,7 @@ class BojTestResultPanel(
             templatePresentation.putClientProperty(
                 ActionUtil.SHOW_TEXT_IN_TOOLBAR, true
             )
-            templatePresentation.text = "실행 대기 중"
+            templatePresentation.text = " 실행 대기 중"
         }
 
         override fun actionPerformed(e: AnActionEvent) {
@@ -374,7 +393,7 @@ class BojTestResultPanel(
 
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = false
-            e.presentation.text = summaryText
+            e.presentation.text = " $summaryText"
         }
 
         override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
