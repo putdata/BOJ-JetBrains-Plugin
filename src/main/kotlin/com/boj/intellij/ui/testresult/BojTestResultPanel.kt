@@ -255,7 +255,7 @@ class BojTestResultPanel(
         for (i in 0 until listModel.size()) {
             val entry = listModel.getElementAt(i)
             listModel.setElementAt(
-                entry.copy(passed = null, timedOut = false, result = null, running = false, elapsedMs = null),
+                entry.copy(passed = null, timedOut = false, result = null, running = false, elapsedMs = null, cancelled = false),
                 i,
             )
         }
@@ -278,7 +278,11 @@ class BojTestResultPanel(
                 is TestCaseKey.Sample -> testResultService.getSampleExpectedOutput((entry.key).index) ?: ""
                 is TestCaseKey.Custom -> testResultService.getCaseExpectedOutput(entry.key) ?: ""
             }
-            actualArea.text = if (entry.running) "실행 중..." else ""
+            actualArea.text = when {
+                entry.running   -> "실행 중..."
+                entry.cancelled -> "중지됨"
+                else            -> ""
+            }
             actualArea.foreground = UIManager.getColor("TextArea.foreground")
             return
         }
@@ -338,6 +342,16 @@ class BojTestResultPanel(
     fun setRunningState(running: Boolean) {
         isRunning = running
         headerToolbar?.updateActionsAsync()
+    }
+
+    fun markRemainingAsCancelled() {
+        for (i in 0 until listModel.size()) {
+            val entry = listModel.getElementAt(i)
+            if (entry.running || entry.isPending) {
+                listModel.setElementAt(entry.copy(running = false, cancelled = true), i)
+            }
+        }
+        summaryText = "중지됨"
     }
 
     private inner class RunAllAction : AnAction(
@@ -434,10 +448,11 @@ data class TestResultEntry(
     val result: SampleRunResult? = null,  // null = 아직 미실행 (PENDING)
     val running: Boolean = false,
     val elapsedMs: Long? = null,
+    val cancelled: Boolean = false,
 ) {
     val index: Int get() = (key as? TestCaseKey.Sample)?.index ?: -1
 
-    val isPending: Boolean get() = result == null && !running
+    val isPending: Boolean get() = result == null && !running && !cancelled
 
     override fun toString(): String = when (key) {
         is TestCaseKey.Sample -> "예제 ${key.index + 1}"
@@ -472,21 +487,23 @@ class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
 
         // 가운데: 상태 아이콘 + 이름 + 상태 텍스트
         val statusIcon: Icon = when {
-            value.running -> AnimatedIcon.Default()
+            value.running   -> AnimatedIcon.Default()
+            value.cancelled -> AllIcons.RunConfigurations.TestNotRan
             value.isPending -> AllIcons.RunConfigurations.TestNotRan
-            value.timedOut -> AllIcons.General.Warning
+            value.timedOut  -> AllIcons.General.Warning
             value.passed == null -> AllIcons.RunConfigurations.TestNotRan
-            value.passed -> AllIcons.RunConfigurations.TestPassed
-            else -> AllIcons.RunConfigurations.TestFailed
+            value.passed    -> AllIcons.RunConfigurations.TestPassed
+            else            -> AllIcons.RunConfigurations.TestFailed
         }
 
         val statusText = when {
-            value.running -> "실행 중..."
-            value.isPending -> ""
-            value.timedOut -> "TLE"
+            value.running        -> "실행 중..."
+            value.cancelled      -> "CANCELLED"
+            value.isPending      -> ""
+            value.timedOut       -> "TLE"
             value.passed == null -> "RUN"
-            value.passed -> "PASS"
-            else -> "FAIL"
+            value.passed         -> "PASS"
+            else                 -> "FAIL"
         }
 
         val displayName = value.toString()
@@ -497,11 +514,12 @@ class TestResultCellRenderer : ListCellRenderer<TestResultEntry> {
         centerLabel.iconTextGap = 6
 
         val statusColor = when {
-            value.running -> UIManager.getColor("Label.foreground") ?: Color.GRAY
-            value.isPending -> PENDING_COLOR
+            value.running        -> UIManager.getColor("Label.foreground") ?: Color.GRAY
+            value.cancelled      -> PENDING_COLOR
+            value.isPending      -> PENDING_COLOR
             value.passed == null -> UIManager.getColor("Label.foreground") ?: Color.GRAY
-            value.passed -> PASS_COLOR
-            else -> FAIL_COLOR
+            value.passed         -> PASS_COLOR
+            else                 -> FAIL_COLOR
         }
         centerLabel.foreground = statusColor
         panel.add(centerLabel, BorderLayout.CENTER)

@@ -483,6 +483,7 @@ class BojToolWindowPanel(
             runBarPanel.setRunning(false)
             findTestResultPanel()?.setRunningState(false)
             if (wasCancelled) {
+                findTestResultPanel()?.markRemainingAsCancelled()
                 runBarPanel.updateStatus("중지됨")
             } else {
                 runBarPanel.updateStatus("$finalPassedCount/$finalJudgedCount 통과")
