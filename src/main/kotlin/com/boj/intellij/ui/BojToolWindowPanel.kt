@@ -624,7 +624,8 @@ class BojToolWindowPanel(
                 FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
             }.getOrNull() ?: return null
 
-        return inferCommandFromFilePath(selectedFilePath)
+        val pythonInterpreter = PythonInterpreterResolver.resolve(project)
+        return inferCommandFromFilePath(selectedFilePath, pythonInterpreter)
     }
 
     private fun resolveProblemNumberFromCurrentClassName(): String? {
@@ -683,7 +684,7 @@ class BojToolWindowPanel(
         private const val DEFAULT_RUN_COMMAND = "./main"
 
         @JvmStatic
-        internal fun inferCommandFromFilePath(filePath: String): String? {
+        internal fun inferCommandFromFilePath(filePath: String, pythonInterpreter: String? = null): String? {
             val normalizedPath = filePath.replace('\\', '/')
             val file = File(normalizedPath)
             val stem = file.nameWithoutExtension.takeIf(String::isNotBlank) ?: return null
@@ -691,7 +692,10 @@ class BojToolWindowPanel(
             return when (file.extension.lowercase()) {
                 "java" -> "java ${quoteForShell(file.path)}"
                 "kt" -> "kotlin ${inferJvmMainClassName(normalizedPath, "${stem}Kt")}"
-                "py" -> "python3 ${quoteForShell(file.path)}"
+                "py" -> {
+                    val interpreter = pythonInterpreter ?: PythonInterpreterResolver.defaultCommand()
+                    "${quoteForShell(interpreter)} ${quoteForShell(file.path)}"
+                }
                 "js" -> "node ${quoteForShell(file.path)}"
                 "ts" -> "ts-node ${quoteForShell(file.path)}"
                 "go" -> "go run ${quoteForShell(file.path)}"
