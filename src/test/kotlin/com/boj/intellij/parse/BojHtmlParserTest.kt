@@ -3,6 +3,7 @@ package com.boj.intellij.parse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class BojHtmlParserTest {
@@ -184,5 +185,53 @@ class BojHtmlParserTest {
         assertTrue(parsed.problemDescriptionHtml.contains("수식: ${'$'}a+b${'$'}"))
         assertFalse(parsed.problemDescriptionHtml.contains("<script"))
         assertEquals("수식: ${'$'}a+b${'$'}", parsed.problemDescription)
+    }
+
+    @Test
+    fun `parses limit subtask hint and sample explain sections`() {
+        val html =
+            """
+            <html>
+              <body>
+                <span id="problem_title">복잡한 문제</span>
+                <table id="problem-info">
+                  <tr><th>시간 제한</th><td>2 초</td><th>메모리 제한</th><td>256 MB</td></tr>
+                  <tr><th>제출</th><td>100</td><th>정답</th><td>50</td></tr>
+                  <tr><th>맞힌 사람</th><td>40</td><th>정답 비율</th><td>50%</td></tr>
+                </table>
+                <section id="problem_description"><h2>문제</h2><p>문제 본문</p></section>
+                <section id="problem_input"><h2>입력</h2><p>입력 설명</p></section>
+                <section id="problem_output"><h2>출력</h2><p>출력 설명</p></section>
+                <section id="problem_limit"><h2>제한</h2><ul><li>1 ≤ N ≤ 500</li></ul></section>
+                <section id="problem_subtask"><h2>서브태스크</h2><table><tr><td>1</td><td>10</td></tr></table></section>
+                <section id="sampleinput1"><pre>1 2</pre></section>
+                <section id="sampleoutput1"><pre>3</pre></section>
+                <section id="sample_explain_1"><div id="problem_sample_explain_1" class="problem-text"><p>설명입니다.</p></div></section>
+                <section id="sampleinput2"><pre>10 20</pre></section>
+                <section id="sampleoutput2"><pre>30</pre></section>
+                <section id="problem_hint"><h2>힌트</h2><p>힌트 내용</p></section>
+              </body>
+            </html>
+            """.trimIndent()
+
+        val parsed = parser.parse(html)
+
+        assertTrue(parsed.limitHtml.contains("1 ≤ N ≤ 500"))
+        assertTrue(parsed.subtaskHtml.contains("<table>"))
+        assertTrue(parsed.hintHtml.contains("힌트 내용"))
+        assertEquals(1, parsed.sampleExplains.size)
+        assertNotNull(parsed.sampleExplains[1])
+        assertTrue(parsed.sampleExplains[1]!!.contains("설명입니다."))
+    }
+
+    @Test
+    fun `returns empty extra sections when not present`() {
+        val html = "<html><body></body></html>"
+        val parsed = parser.parse(html)
+
+        assertEquals("", parsed.limitHtml)
+        assertEquals("", parsed.subtaskHtml)
+        assertEquals("", parsed.hintHtml)
+        assertEquals(emptyMap(), parsed.sampleExplains)
     }
 }

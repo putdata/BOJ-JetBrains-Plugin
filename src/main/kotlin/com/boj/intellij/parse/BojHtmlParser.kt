@@ -12,6 +12,10 @@ class BojHtmlParser : BojParser {
         val problemDescription = parseBodySection(document, "#problem_description")
         val inputDescription = parseBodySection(document, "#problem_input")
         val outputDescription = parseBodySection(document, "#problem_output")
+        val limitSection = parseBodySection(document, "#problem_limit")
+        val subtaskSection = parseBodySection(document, "#problem_subtask")
+        val hintSection = parseBodySection(document, "#problem_hint")
+        val sampleExplains = parseSampleExplains(document)
 
         return ParsedProblem(
             title = textOf(document, "#problem_title"),
@@ -28,6 +32,10 @@ class BojHtmlParser : BojParser {
             inputDescriptionHtml = inputDescription.html,
             outputDescriptionHtml = outputDescription.html,
             samplePairs = samplePairs,
+            limitHtml = sanitizeSectionHtml(limitSection.html),
+            subtaskHtml = sanitizeSectionHtml(subtaskSection.html),
+            hintHtml = sanitizeSectionHtml(hintSection.html),
+            sampleExplains = sampleExplains,
         )
     }
 
@@ -114,6 +122,18 @@ class BojHtmlParser : BojParser {
                 output = outputMap[index].orEmpty(),
             )
         }
+    }
+
+    private fun parseSampleExplains(document: Document): Map<Int, String> {
+        return document.select("section[id^=sample_explain_]")
+            .associateNotNull { section ->
+                val id = section.id()
+                val index = id.removePrefix("sample_explain_").toIntOrNull()
+                    ?: return@associateNotNull null
+                val contentDiv = section.selectFirst(".problem-text")
+                val html = contentDiv?.html() ?: section.html()
+                index to sanitizeSectionHtml(html)
+            }
     }
 
     private fun parseSampleByPrefix(document: Document, prefix: String): Map<Int, String> {
