@@ -138,7 +138,11 @@ class BojTestResultPanel(
         for (i in 0 until listModel.size()) {
             val entry = listModel.getElementAt(i)
             if (entry.key == key) {
-                listModel.setElementAt(entry.copy(running = true, result = null, passed = null, elapsedMs = null), i)
+                val updated = entry.copy(running = true, result = null, passed = null, elapsedMs = null)
+                listModel.setElementAt(updated, i)
+                resultList.selectedIndex = i
+                resultList.ensureIndexIsVisible(i)
+                showDetail(updated)
                 break
             }
         }

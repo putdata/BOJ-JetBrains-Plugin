@@ -338,30 +338,7 @@ class BojToolWindowPanel(
     }
 
     private fun handleRunSample(index: Int, command: String) {
-        val sample = currentSamples.getOrNull(index) ?: return
-        val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
-
-        try {
-            val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
-            val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-            runOnEdt { sendResult(index, result) }
-        } catch (exception: Exception) {
-            val message = exception.message ?: exception::class.simpleName.orEmpty()
-            val errorResult = SampleRunResult(
-                passed = false,
-                actualOutput = "",
-                expectedOutput = sample.output,
-                standardError = message,
-                exitCode = null,
-                timedOut = false,
-                comparison = OutputComparisonResult(
-                    passed = false,
-                    normalizedExpected = sample.output,
-                    normalizedActual = "",
-                ),
-            )
-            runOnEdt { sendResult(index, errorResult) }
-        }
+        handleRunSingle(TestCaseKey.Sample(index), command)
     }
 
     private fun handleStop() {
