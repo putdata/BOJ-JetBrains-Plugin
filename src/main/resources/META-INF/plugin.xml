@@ -25,6 +25,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>1.0.1</h3>
+    <ul>
+        <li>문제 번호가 없는 파일(예: Main.java)에서 실행 명령어 combobox가 갱신되지 않는 문제 수정</li>
+    </ul>
     <h3>1.0.0</h3>
     <ul>
         <li>최초 릴리스</li>
