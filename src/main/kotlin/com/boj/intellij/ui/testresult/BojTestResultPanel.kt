@@ -38,6 +38,11 @@ class BojTestResultPanel(
     var onEditCustom: (name: String) -> Unit = {}
     var onDeleteCustom: (name: String) -> Unit = {}
     var onRunSingle: (key: TestCaseKey) -> Unit = {}
+    var onRunAll: () -> Unit = {}
+    var onStop: () -> Unit = {}
+
+    private var isRunning = false
+    private var leftToolbar: com.intellij.openapi.actionSystem.ActionToolbar? = null
 
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
@@ -306,6 +311,11 @@ class BojTestResultPanel(
         menu.add(editItem)
         menu.add(deleteItem)
         menu.show(resultList, e.x, e.y)
+    }
+
+    fun setRunningState(running: Boolean) {
+        isRunning = running
+        leftToolbar?.updateActionsImmediately()
     }
 
     override fun dispose() {}
