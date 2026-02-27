@@ -1,5 +1,7 @@
 # BOJ Helper
 
+View and test Baekjoon Online Judge problems directly in your JetBrains IDE.
+
 > 백준 온라인 저지 문제를 JetBrains IDE에서 바로 보고 테스트하세요.
 
 <!-- 메인 스크린샷 -->

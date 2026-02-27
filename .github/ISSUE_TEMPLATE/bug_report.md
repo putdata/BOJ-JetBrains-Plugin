@@ -22,5 +22,4 @@ labels: bug
 
 ## 환경 정보
 - OS:
-- Java 버전:
-- Spring Boot 버전:
+- IDE / 버전:
