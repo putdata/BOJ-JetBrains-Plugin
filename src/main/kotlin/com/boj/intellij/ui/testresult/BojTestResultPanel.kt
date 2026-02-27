@@ -11,6 +11,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.boj.intellij.ui.ActionToolbarCompat.updateActionsSafe
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.AnimatedIcon
@@ -341,7 +342,7 @@ class BojTestResultPanel(
 
     fun setRunningState(running: Boolean) {
         isRunning = running
-        headerToolbar?.updateActionsAsync()
+        headerToolbar?.updateActionsSafe()
     }
 
     fun markRemainingAsCancelled() {
@@ -370,8 +371,6 @@ class BojTestResultPanel(
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = !isRunning
         }
-
-        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
     }
 
     private inner class StopAction : AnAction(
@@ -390,8 +389,6 @@ class BojTestResultPanel(
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = isRunning
         }
-
-        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
     }
 
     private inner class SummaryAction : AnAction() {
@@ -410,8 +407,6 @@ class BojTestResultPanel(
             e.presentation.isEnabled = false
             e.presentation.text = " $summaryText"
         }
-
-        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
     }
 
     private inner class AddCustomAction : AnAction(
@@ -422,8 +417,6 @@ class BojTestResultPanel(
         override fun actionPerformed(e: AnActionEvent) {
             onAddCustom()
         }
-
-        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
     }
 
     private inner class ManageCustomAction : AnAction(
@@ -434,8 +427,6 @@ class BojTestResultPanel(
         override fun actionPerformed(e: AnActionEvent) {
             onManageCustom()
         }
-
-        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
     }
 
     override fun dispose() {}
