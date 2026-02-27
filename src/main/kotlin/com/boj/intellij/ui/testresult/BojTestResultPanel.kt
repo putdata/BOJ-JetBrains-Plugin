@@ -5,12 +5,12 @@ import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.intellij.icons.AllIcons
 import com.intellij.ide.ActivityTracker
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ex.ActionUtil
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.JBColor
