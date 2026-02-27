@@ -32,6 +32,13 @@ class ManageCustomTestCasesDialog(
         setOKButtonText("닫기")
         // Cancel button is already excluded via createActions() returning only okAction
         refreshList()
+        caseList.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                if (e.clickCount == 2 && caseList.selectedValue != null) {
+                    onEdit()
+                }
+            }
+        })
         init()
     }
 
