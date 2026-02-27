@@ -4,11 +4,12 @@ import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.intellij.icons.AllIcons
+import com.intellij.ide.ActivityTracker
 import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.AnimatedIcon
@@ -47,7 +48,6 @@ class BojTestResultPanel(
     var onStop: () -> Unit = {}
 
     private var isRunning = false
-    private var leftToolbar: ActionToolbar? = null
 
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
@@ -66,7 +66,6 @@ class BojTestResultPanel(
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
 
-        add(buildHeaderPanel(), BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
 
         resultList.cellRenderer = TestResultCellRenderer()
@@ -153,29 +152,6 @@ class BojTestResultPanel(
             val entry = listModel.getElementAt(i)
             listModel.setElementAt(entry.copy(running = true, result = null, passed = null, elapsedMs = null), i)
         }
-    }
-
-    private fun buildHeaderPanel(): JPanel {
-        val headerPanel = JPanel(BorderLayout())
-
-        // 좌측: ActionToolbar + summaryLabel
-        val leftGroup = DefaultActionGroup().apply {
-            add(RunAllAction())
-            add(StopAction())
-        }
-        val toolbar = ActionManager.getInstance()
-            .createActionToolbar("BojTestResultHeader", leftGroup, true)
-        toolbar.targetComponent = this
-        leftToolbar = toolbar
-
-        val leftPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0))
-        leftPanel.isOpaque = false
-        leftPanel.add(toolbar.component)
-        leftPanel.add(summaryLabel)
-
-        headerPanel.add(leftPanel, BorderLayout.WEST)
-
-        return headerPanel
     }
 
     private fun buildListPanel(): JPanel {
@@ -347,9 +323,11 @@ class BojTestResultPanel(
         menu.show(resultList, e.x, e.y)
     }
 
+    fun createTitleActions(): List<AnAction> = listOf(RunAllAction(), StopAction(), SummaryAction())
+
     fun setRunningState(running: Boolean) {
         isRunning = running
-        leftToolbar?.updateActionsAsync()
+        ActivityTracker.getInstance().inc()
     }
 
     private inner class RunAllAction : AnAction(
@@ -379,6 +357,26 @@ class BojTestResultPanel(
 
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = isRunning
+        }
+
+        override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
+    }
+
+    private inner class SummaryAction : AnAction() {
+        init {
+            templatePresentation.putClientProperty(
+                ActionUtil.SHOW_TEXT_IN_TOOLBAR, true
+            )
+            templatePresentation.text = "실행 대기 중"
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            // 텍스트 레이블 전용 - 클릭 동작 없음
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = false
+            e.presentation.text = summaryLabel.text
         }
 
         override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.EDT
