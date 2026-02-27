@@ -17,4 +17,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "boj-intellij"
+rootProject.name = "boj-helper"

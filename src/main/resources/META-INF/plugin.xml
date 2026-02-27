@@ -1,10 +1,39 @@
 <idea-plugin>
     <id>com.boj.intellij</id>
-    <name>BOJ IntelliJ</name>
-    <vendor email="dev@example.com">BOJ IntelliJ Team</vendor>
+    <name>BOJ Helper</name>
+    <vendor email="put_data@naver.com" url="https://github.com/putdata/BOJ-JetBrains-Plugin">Ikjun Oh</vendor>
     <description><![CDATA[
-        Scaffold for a BOJ IntelliJ plugin.
+    <h2>BOJ Helper - 백준 온라인 저지 도우미</h2>
+    <p>백준 온라인 저지(BOJ) 문제를 JetBrains IDE에서 바로 보고, 샘플 테스트를 실행할 수 있는 플러그인입니다.</p>
+
+    <h3>주요 기능</h3>
+    <ul>
+        <li><b>문제 자동 불러오기</b> — 파일명에서 문제 번호를 자동 인식하여 문제를 로딩합니다 (예: Boj1000.java)</li>
+        <li><b>수식 렌더링</b> — LaTeX 수식을 포함한 문제를 MathJax로 렌더링합니다 (JCEF 지원 IDE)</li>
+        <li><b>샘플 테스트 실행</b> — 샘플 입출력을 로컬에서 실행하고 결과를 자동으로 비교합니다</li>
+        <li><b>커스텀 테스트 케이스</b> — 직접 테스트 케이스를 추가하고 관리할 수 있습니다</li>
+        <li><b>코드 복사</b> — 백준 제출용으로 클래스명을 Main으로 자동 변환하여 복사합니다</li>
+    </ul>
+
+    <h3>지원 언어</h3>
+    <p>Java, Kotlin, Python</p>
+
+    <h3>호환성</h3>
+    <p>IntelliJ IDEA, PyCharm 등 JetBrains IDE 2021.3+</p>
     ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>1.0.0</h3>
+    <ul>
+        <li>최초 릴리스</li>
+        <li>BOJ 문제 불러오기 및 렌더링</li>
+        <li>샘플 입출력 로컬 실행 및 결과 비교</li>
+        <li>커스텀 테스트 케이스 추가/관리</li>
+        <li>백준 제출용 코드 복사</li>
+        <li>Java, Kotlin, Python 실행 지원</li>
+        <li>JetBrains IDE 2021.3+ 멀티 IDE 호환성</li>
+    </ul>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
 

@@ -1,78 +1,66 @@
-# BOJ IntelliJ Plugin
+# BOJ Helper
 
-BOJ IntelliJ is a tool window plugin for IntelliJ IDEA that fetches a BOJ problem page, fills parsed fields, and runs local sample commands against selected sample input and output.
+> 백준 온라인 저지 문제를 JetBrains IDE에서 바로 보고 테스트하세요.
 
-## Target IDE
+<!-- 메인 스크린샷 -->
+![BOJ Helper 메인 화면](docs/screenshots/main.png)
 
-- IntelliJ target line: 25.3 (build 253)
-- Plugin compatibility: since-build `253`, until-build `253.*`
+## 주요 기능
 
-## Setup
+### 문제 자동 불러오기
+파일명에서 문제 번호를 자동 인식합니다. `Boj1000.java`, `Main_1000.py` 같은 파일을 열면 해당 문제가 자동으로 로딩됩니다. 직접 문제 번호를 입력할 수도 있습니다.
 
-1. Use Java 21.
-2. Use the Gradle wrapper from this repository.
-3. For stable local verification, set this environment variable before Gradle commands:
+### 수식 렌더링
+LaTeX 수식을 포함한 문제를 MathJax로 렌더링합니다. JCEF를 지원하는 IDE에서는 백준 웹사이트와 동일한 형태로 문제를 볼 수 있습니다.
 
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-```
+### 샘플 테스트 실행
+샘플 입출력을 로컬에서 실행하고 결과를 자동으로 비교합니다.
 
-Run from the project root:
+- **Pass** — 출력이 예상 결과와 일치
+- **Fail** — 출력 불일치, 런타임 에러, 또는 시간 초과
+- 출력 비교 시 후행 공백과 빈 줄은 무시합니다
 
-```bash
-./gradlew runIde
-```
+### 커스텀 테스트 케이스
+샘플 외에 직접 테스트 케이스를 추가하고 관리할 수 있습니다.
 
-This launches a sandbox IntelliJ instance with the plugin loaded.
+![커스텀 테스트 목록](docs/screenshots/custom_test_list.png)
+![커스텀 테스트 편집](docs/screenshots/custom_test_detail.png)
 
-## Usage Flow: Fetch Problem and Run Sample
+### 코드 복사
+백준 제출용으로 클립보드에 복사합니다. Java 코드의 경우, 클래스명을 `Main`으로 자동 변환합니다.
 
-1. In the sandbox IDE, open the `BOJ` tool window.
-2. Optionally enter a numeric BOJ problem number in the problem number field.
-3. Click the fetch button to load the problem page.
-   - If the field is blank, the plugin tries to extract a problem number from the currently opened class/file name (for example `Boj1000`, `Main_1000`).
-   - On tool window open and whenever the currently opened code file changes, the same class-name extraction is attempted automatically.
-4. Confirm parsed fields are filled:
-   - title
-   - limits/statistics in separate rows (time limit, memory limit, submit, answer, solved, correct rate)
-   - body sections split into separate panels (`문제`, `입력`, `출력`) in BOJ-like layout
-   - section content renders rich HTML/MathJax when JCEF is available (fallback to plain text otherwise)
-5. In the sample section, choose a sample from the sample selector.
-6. Confirm the sample input and expected output text areas are updated to the selected sample.
-7. Optionally enter a local execution command in the command field.
-8. Click run.
+## 지원 언어
 
-The command runs with sample input sent to stdin, and the result is compared against the selected expected output.
-If the command field is left blank, the plugin first infers a command from the currently opened file (for example `java ".../Main.java"`, `kotlin ...`, or `python3 ...`), and falls back to `./main` when inference is not possible.
+| 언어 | 실행 방식 |
+|------|-----------|
+| Java | `java` 명령어로 컴파일 및 실행 |
+| Kotlin | `kotlin` 명령어로 실행 |
+| Python | 프로젝트 인터프리터 자동 감지 |
 
-## Concrete Sample Run Command
+## 설치
 
-For BOJ `1000` style input (`1 2`) and output (`3`), this command is a reliable local example:
+### JetBrains Marketplace
+1. **Settings** → **Plugins** → **Marketplace**
+2. "BOJ Helper" 검색
+3. **Install** 클릭
 
-```bash
-sh -c "awk '{print $1 + $2}'"
-```
+### 수동 설치
+1. [Releases](https://github.com/putdata/BOJ-JetBrains-Plugin/releases)에서 `.zip` 파일 다운로드
+2. **Settings** → **Plugins** → ⚙️ → **Install Plugin from Disk...**
 
-Paste the command into the run command field, then run it after selecting a sample.
+## 사용법
 
-## How to Interpret Output
+1. 파일명에 문제 번호를 포함하여 파일을 생성합니다 (예: `Boj1000.java`)
+2. 우측 **BOJ** 도구 창에서 문제가 자동으로 로딩됩니다
+3. 코드를 작성한 후 **실행** 버튼을 클릭합니다
+4. 하단 **BOJ 테스트** 도구 창에서 결과를 확인합니다
 
-- Pass: output matches expected sample output after normalization.
-- Fail (timeout): command exceeded timeout.
-- Fail (exit code): process ended with non-zero exit code.
-- Fail (mismatch): command finished, but output does not match expected output.
+## 호환성
 
-Normalization used for comparison:
+- **IDE:** IntelliJ IDEA, PyCharm, WebStorm 등 JetBrains IDE
+- **버전:** 2021.3 이상
+- **수식 렌더링:** JCEF 지원 IDE (미지원 시 텍스트 폴백)
 
-- CRLF and CR are normalized to LF.
-- trailing spaces and tabs per line are ignored.
-- trailing blank lines are ignored.
+## 피드백
 
-Use the `Actual` output area and `stderr` area to debug failures.
-
-## Troubleshooting
-
-- If Gradle uses the wrong JDK, set `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` and rerun.
-- If BOJ fetch fails, confirm the problem number is numeric and check network access.
-- If sample run fails with command errors, validate quoting and command availability in your shell environment.
-- Kotlin LSP diagnostics are not available in this environment, so Kotlin diagnostics are validated with Gradle test and build commands instead.
+버그 리포트나 기능 요청은 [GitHub Issues](https://github.com/putdata/BOJ-JetBrains-Plugin/issues)에 남겨주세요.
