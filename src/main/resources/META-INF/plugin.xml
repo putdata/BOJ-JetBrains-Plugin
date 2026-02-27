@@ -48,12 +48,13 @@
                 id="BOJ"
                 anchor="right"
                 factoryClass="com.boj.intellij.ui.BojToolWindowFactory"
-                canCloseContents="false"/>
+                canCloseContents="false"
+                icon="/icons/toolwindow.svg"/>
         <toolWindow
                 id="BOJ 테스트"
                 anchor="bottom"
                 factoryClass="com.boj.intellij.ui.testresult.BojTestResultToolWindowFactory"
                 canCloseContents="false"
-                icon="AllIcons.Toolwindows.ToolWindowRun"/>
+                icon="/icons/toolwindow.svg"/>
     </extensions>
 </idea-plugin>
