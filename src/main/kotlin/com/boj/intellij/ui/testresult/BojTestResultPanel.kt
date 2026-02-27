@@ -345,7 +345,7 @@ class BojTestResultPanel(
 
     fun setRunningState(running: Boolean) {
         isRunning = running
-        leftToolbar?.updateActionsImmediately()
+        leftToolbar?.updateActionsAsync()
     }
 
     private inner class RunAllAction : AnAction(
