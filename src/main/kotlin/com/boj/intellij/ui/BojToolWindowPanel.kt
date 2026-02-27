@@ -244,14 +244,7 @@ class BojToolWindowPanel(
                     lastFetchedProblemNumber = problemNumber
                     currentProblemNumber = problemNumber
                     bindProblem(parsedProblem)
-                    setFetchStatus(
-                        if (inferredFromClassName) {
-                            "클래스명에서 추출한 문제 $problemNumber 를 성공적으로 불러왔습니다."
-                        } else {
-                            "문제 $problemNumber 를 성공적으로 불러왔습니다."
-                        },
-                        isError = false,
-                    )
+                    setFetchStatus("", isError = false)
                 }
             } catch (exception: Exception) {
                 val message = exception.message ?: exception::class.simpleName.orEmpty()
