@@ -10,7 +10,6 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ActionToolbar
-import com.boj.intellij.ui.ActionToolbarCompat.showTextInToolbar
 import com.boj.intellij.ui.ActionToolbarCompat.updateActionsSafe
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
@@ -360,9 +359,8 @@ class BojTestResultPanel(
         "모든 테스트 케이스 실행",
         AllIcons.Actions.Execute,
     ) {
-        init {
-            templatePresentation.showTextInToolbar()
-        }
+        @Suppress("DEPRECATION")
+        override fun displayTextInToolbar(): Boolean = true
 
         override fun actionPerformed(e: AnActionEvent) {
             onRunAll()
@@ -378,9 +376,8 @@ class BojTestResultPanel(
         "실행 중인 테스트 중지",
         AllIcons.Actions.Suspend,
     ) {
-        init {
-            templatePresentation.showTextInToolbar()
-        }
+        @Suppress("DEPRECATION")
+        override fun displayTextInToolbar(): Boolean = true
 
         override fun actionPerformed(e: AnActionEvent) {
             onStop()
@@ -393,9 +390,11 @@ class BojTestResultPanel(
 
     private inner class SummaryAction : AnAction() {
         init {
-            templatePresentation.showTextInToolbar()
             templatePresentation.text = " 실행 대기 중"
         }
+
+        @Suppress("DEPRECATION")
+        override fun displayTextInToolbar(): Boolean = true
 
         override fun actionPerformed(e: AnActionEvent) {
             // 텍스트 레이블 전용 - 클릭 동작 없음
