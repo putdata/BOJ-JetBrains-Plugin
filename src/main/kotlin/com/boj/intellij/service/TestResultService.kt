@@ -90,4 +90,13 @@ class TestResultService {
 
     fun getCustomKeys(): List<TestCaseKey.Custom> =
         caseInputs.keys.filterIsInstance<TestCaseKey.Custom>()
+
+    fun clearCustomCaseInfo() {
+        val customKeys = caseInputs.keys.filterIsInstance<TestCaseKey.Custom>()
+        for (key in customKeys) {
+            caseInputs.remove(key)
+            caseExpectedOutputs.remove(key)
+            keyedResults.remove(key)
+        }
+    }
 }

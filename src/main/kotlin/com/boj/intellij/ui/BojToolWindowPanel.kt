@@ -520,13 +520,14 @@ class BojToolWindowPanel(
         if (dialog.showAndGet()) {
             val name = dialog.getCaseName().ifBlank { defaultName }
             customTestCaseRepository.save(problemId, name, dialog.getCustomTestCase())
-            syncCustomCasesToTestResultService()
+            refreshTestResultPanel()
         }
     }
 
     private fun syncCustomCasesToTestResultService() {
         val problemId = currentProblemNumber ?: return
         val testService = findTestResultService() ?: return
+        testService.clearCustomCaseInfo()
         val customCases = customTestCaseRepository.load(problemId)
         for ((name, case) in customCases) {
             testService.setCaseInfo(
@@ -535,6 +536,13 @@ class BojToolWindowPanel(
                 case.expectedOutput,
             )
         }
+    }
+
+    private fun refreshTestResultPanel() {
+        syncCustomCasesToTestResultService()
+        val panel = findTestResultPanel() ?: return
+        val testService = findTestResultService() ?: return
+        panel.populateEntries(testService.getSampleCount(), testService.getCustomKeys())
     }
 
     private fun findTestResultPanel(): BojTestResultPanel? {
@@ -574,14 +582,14 @@ class BojToolWindowPanel(
                 customTestCaseRepository.delete(problemId, name)
             }
             customTestCaseRepository.save(problemId, newName, dialog.getCustomTestCase())
-            syncCustomCasesToTestResultService()
+            refreshTestResultPanel()
         }
     }
 
     private fun deleteCustomTestCase(name: String) {
         val problemId = currentProblemNumber ?: return
         customTestCaseRepository.delete(problemId, name)
-        syncCustomCasesToTestResultService()
+        refreshTestResultPanel()
     }
 
     private fun showManageCustomTestCasesDialog() {
@@ -590,7 +598,7 @@ class BojToolWindowPanel(
             project = project,
             repository = customTestCaseRepository,
             problemId = problemId,
-            onChanged = { syncCustomCasesToTestResultService() },
+            onChanged = { refreshTestResultPanel() },
         ).show()
     }
 
