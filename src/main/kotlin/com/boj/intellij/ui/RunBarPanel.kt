@@ -15,10 +15,13 @@ import javax.swing.BorderFactory
 import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JPanel
+import java.util.Timer
+import kotlin.concurrent.schedule
 
 class RunBarPanel(
     private val onRunAll: (command: String) -> Unit,
     private val onStop: () -> Unit = {},
+    private val onCopyForSubmit: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     data class CommandEntry(
@@ -56,8 +59,19 @@ class RunBarPanel(
             leftPanel.add(actionToolbar.component)
         }
 
+        leftPanel.add(statusLabel)
+
         add(leftPanel, BorderLayout.WEST)
-        add(statusLabel, BorderLayout.EAST)
+
+        runCatching {
+            val copyGroup = DefaultActionGroup().apply {
+                add(CopyForSubmitAction())
+            }
+            val copyToolbar = ActionManager.getInstance()
+                .createActionToolbar("BojRunBarCopy", copyGroup, true)
+            copyToolbar.targetComponent = this
+            add(copyToolbar.component, BorderLayout.EAST)
+        }
     }
 
     fun setAvailableCommands(commands: List<CommandEntry>) {
@@ -72,6 +86,18 @@ class RunBarPanel(
 
     fun updateStatus(text: String) {
         statusLabel.text = text
+    }
+
+    fun showCopyFeedback() {
+        val previousText = statusLabel.text
+        statusLabel.text = "복사됨"
+        Timer().schedule(2000) {
+            javax.swing.SwingUtilities.invokeLater {
+                if (statusLabel.text == "복사됨") {
+                    statusLabel.text = previousText
+                }
+            }
+        }
     }
 
     fun getStatusText(): String = statusLabel.text
@@ -122,6 +148,18 @@ class RunBarPanel(
 
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = isRunning
+        }
+
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+    }
+
+    private inner class CopyForSubmitAction : AnAction(
+        "제출용 복사",
+        "백준 제출용 코드 복사 (Java: 클래스명→Main)",
+        AllIcons.Actions.Copy,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            onCopyForSubmit()
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
