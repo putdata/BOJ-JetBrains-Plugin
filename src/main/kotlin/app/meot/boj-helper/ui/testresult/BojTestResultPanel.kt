@@ -127,13 +127,20 @@ class BojTestResultPanel(
 
     fun getTestResultService(): TestResultService = testResultService
 
-    fun populateEntries(sampleCount: Int, customKeys: List<TestCaseKey.Custom>) {
+    fun populateEntries(
+        sampleCount: Int,
+        customKeys: List<TestCaseKey.Custom>,
+        generalKeys: List<TestCaseKey.General> = emptyList(),
+    ) {
         listModel.clear()
         for (i in 0 until sampleCount) {
             listModel.addElement(TestResultEntry(key = TestCaseKey.Sample(i)))
         }
         for (customKey in customKeys) {
             listModel.addElement(TestResultEntry(key = customKey))
+        }
+        for (generalKey in generalKeys) {
+            listModel.addElement(TestResultEntry(key = generalKey))
         }
         if (listModel.size() > 0) {
             resultList.selectedIndex = 0
@@ -215,6 +222,7 @@ class BojTestResultPanel(
         val hasExpectedOutput = when (key) {
             is TestCaseKey.Sample -> true
             is TestCaseKey.Custom -> testResultService.getCaseExpectedOutput(key) != null
+            is TestCaseKey.General -> true  // General always has expected output
         }
         val hasError = result.timedOut || result.exitCode == null || result.exitCode != 0
         val entry = TestResultEntry(
@@ -270,6 +278,7 @@ class BojTestResultPanel(
         val input = when (entry.key) {
             is TestCaseKey.Sample -> testResultService.getSampleInput(entry.key.index) ?: ""
             is TestCaseKey.Custom -> testResultService.getCaseInput(entry.key) ?: ""
+            is TestCaseKey.General -> testResultService.getCaseInput(entry.key) ?: ""
         }
         inputArea.text = input
 
@@ -277,6 +286,7 @@ class BojTestResultPanel(
             expectedArea.text = when (entry.key) {
                 is TestCaseKey.Sample -> testResultService.getSampleExpectedOutput((entry.key).index) ?: ""
                 is TestCaseKey.Custom -> testResultService.getCaseExpectedOutput(entry.key) ?: ""
+                is TestCaseKey.General -> testResultService.getCaseExpectedOutput(entry.key) ?: ""
             }
             actualArea.text = when {
                 entry.running   -> "실행 중..."
@@ -445,6 +455,7 @@ data class TestResultEntry(
     override fun toString(): String = when (key) {
         is TestCaseKey.Sample -> "예제 ${key.index + 1}"
         is TestCaseKey.Custom -> key.name
+        is TestCaseKey.General -> key.name
     }
 }
 
