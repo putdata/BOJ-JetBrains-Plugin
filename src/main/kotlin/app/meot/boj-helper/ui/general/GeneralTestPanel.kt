@@ -64,6 +64,10 @@ class GeneralTestPanel(
 
     private var currentFileKey: String? = null
     private val fileLabel = JLabel("파일을 열어주세요")
+    private val emptyStateLabel = JLabel("테스트 추가 버튼을 눌러 테스트케이스를 추가하세요").apply {
+        foreground = UIManager.getColor("Label.disabledForeground")
+        horizontalAlignment = JLabel.CENTER
+    }
     private val testCaseListPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
     }
@@ -111,6 +115,7 @@ class GeneralTestPanel(
     private fun buildCenter(): JPanel {
         val centerPanel = JPanel(BorderLayout())
 
+        testCaseListPanel.add(emptyStateLabel)
         val scrollPane = JBScrollPane(testCaseListPanel)
         scrollPane.border = BorderFactory.createEmptyBorder()
         centerPanel.add(scrollPane, BorderLayout.CENTER)
@@ -243,8 +248,9 @@ class GeneralTestPanel(
         val fileKey = currentFileKey ?: return
         val cases = repository.load(fileKey)
         if (cases.isEmpty()) {
-            addNewTestCase()
+            updateEmptyState(true)
         } else {
+            updateEmptyState(false)
             for ((name, case) in cases) {
                 addTestCaseEntry(name, case.input, case.expectedOutput)
             }
@@ -268,10 +274,12 @@ class GeneralTestPanel(
     private fun addNewTestCase() {
         val fileKey = currentFileKey ?: return
         if (resolveCurrentFileRunCommand() == null) return
+        updateEmptyState(false)
         val name = repository.nextAutoName(fileKey)
         addTestCaseEntry(name, "", "")
         testCaseListPanel.revalidate()
         testCaseListPanel.repaint()
+        syncTestResultPanel()
     }
 
     private fun addTestCaseEntry(name: String, input: String, expectedOutput: String) {
@@ -301,6 +309,9 @@ class GeneralTestPanel(
         testCaseListPanel.revalidate()
         testCaseListPanel.repaint()
         syncTestResultPanel()
+        if (testCaseEntries.isEmpty()) {
+            updateEmptyState(true)
+        }
     }
 
     fun saveAllTestCases() {
@@ -430,6 +441,10 @@ class GeneralTestPanel(
     }
 
     // --- Helpers ---
+
+    private fun updateEmptyState(isEmpty: Boolean) {
+        emptyStateLabel.isVisible = isEmpty
+    }
 
     private fun createErrorResult(expectedOutput: String, errorMessage: String): SampleRunResult {
         return SampleRunResult(
