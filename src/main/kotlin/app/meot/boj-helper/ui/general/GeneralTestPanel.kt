@@ -494,11 +494,9 @@ class GeneralTestPanel(
 
     private fun updateTestCaseFromPanel(name: String, input: String, expectedOutput: String) {
         val fileKey = currentFileKey ?: return
-        val entry = testCaseEntries.find { it.testName == name }
-        if (entry != null) {
-            entry.setInput(input)
-            entry.setExpectedOutput(expectedOutput)
-        }
+        val entry = testCaseEntries.find { it.testName == name } ?: return
+        entry.setInput(input)
+        entry.setExpectedOutput(expectedOutput)
         repository.save(fileKey, name, GeneralTestCase(input = input, expectedOutput = expectedOutput))
     }
 
