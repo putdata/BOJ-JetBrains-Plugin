@@ -167,8 +167,12 @@ class GeneralTestPanel(
             return
         }
         fileLabel.text = fileName
-        loadTestCases()
         updateRunBarCommands()
+        if (resolveCurrentFileRunCommand() == null) {
+            clearTestCaseEntries()
+            return
+        }
+        loadTestCases()
     }
 
     // --- Test case management ---
@@ -202,6 +206,7 @@ class GeneralTestPanel(
 
     private fun addNewTestCase() {
         val fileName = currentFileName ?: return
+        if (resolveCurrentFileRunCommand() == null) return
         val name = repository.nextAutoName(fileName)
         addTestCaseEntry(name, "", "")
         testCaseListPanel.revalidate()

@@ -42,10 +42,10 @@ class GeneralTestCaseRepository(
     fun nextAutoName(fileName: String): String {
         val existing = load(fileName).keys
         var counter = 1
-        while ("테스트 $counter" in existing) {
+        while ("$counter" in existing) {
             counter++
         }
-        return "테스트 $counter"
+        return "$counter"
     }
 
     private fun caseDir(fileName: String): File =
