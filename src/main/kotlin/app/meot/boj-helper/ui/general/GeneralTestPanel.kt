@@ -147,6 +147,45 @@ class GeneralTestPanel(
         }
     }
 
+    fun onTabSelected() {
+        val testService = findTestResultService() ?: return
+        val panel = findTestResultPanel() ?: return
+
+        testService.clearResults()
+        testService.clearSampleInfo()
+
+        val fileName = currentFileName ?: return
+        val cases = repository.load(fileName)
+        if (cases.isEmpty()) return
+
+        testService.clearGeneralCaseInfo()
+        for ((name, case) in cases) {
+            val key = TestCaseKey.General(name)
+            testService.setCaseInfo(key, case.input, case.expectedOutput)
+        }
+
+        val generalKeys = cases.keys.map { TestCaseKey.General(it) }
+        panel.populateEntries(0, emptyList(), generalKeys)
+
+        panel.onRunSingle = { key ->
+            val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand()
+            if (command != null) {
+                runInBackground { handleRunSingle((key as TestCaseKey.General).name, command) }
+            }
+        }
+        panel.onRunAll = {
+            val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand()
+            if (command != null) {
+                runInBackground { handleRunAll(command) }
+            }
+        }
+        panel.onStop = { handleStop() }
+        panel.onAddCustom = {}
+        panel.onManageCustom = {}
+        panel.onEditCustom = {}
+        panel.onDeleteCustom = {}
+    }
+
     private fun onFileChanged() {
         val selectedFile = runCatching {
             FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
