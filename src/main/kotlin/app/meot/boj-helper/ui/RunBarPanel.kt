@@ -24,6 +24,7 @@ class RunBarPanel(
     private val onRunAll: (command: String) -> Unit,
     private val onStop: () -> Unit = {},
     private val onCopyForSubmit: () -> Unit = {},
+    private val showCopyButton: Boolean = true,
 ) : JPanel(BorderLayout()) {
 
     data class CommandEntry(
@@ -66,17 +67,19 @@ class RunBarPanel(
 
         add(leftPanel, BorderLayout.WEST)
 
-        copyButton.apply {
-            toolTipText = "백준 제출용 코드 복사 (Java: 클래스명→Main)"
-            isBorderPainted = false
-            isContentAreaFilled = false
-            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            addActionListener {
-                onCopyForSubmit()
-                showCopyFeedback()
+        if (showCopyButton) {
+            copyButton.apply {
+                toolTipText = "백준 제출용 코드 복사 (Java: 클래스명→Main)"
+                isBorderPainted = false
+                isContentAreaFilled = false
+                cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                addActionListener {
+                    onCopyForSubmit()
+                    showCopyFeedback()
+                }
             }
+            add(copyButton, BorderLayout.EAST)
         }
-        add(copyButton, BorderLayout.EAST)
     }
 
     fun setAvailableCommands(commands: List<CommandEntry>) {

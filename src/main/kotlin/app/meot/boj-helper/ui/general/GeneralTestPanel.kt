@@ -70,6 +70,7 @@ class GeneralTestPanel(
     private val runBarPanel = RunBarPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
         onStop = { handleStop() },
+        showCopyButton = false,
     )
 
     @Volatile
@@ -263,7 +264,6 @@ class GeneralTestPanel(
             panel?.setRunning(key)
             panel?.setRunningState(true)
             showTestResultToolWindow()
-            wireTestResultPanelCallbacks()
         }
 
         try {
@@ -312,7 +312,6 @@ class GeneralTestPanel(
             panel?.setRunningState(true)
             panel?.setAllRunning()
             showTestResultToolWindow()
-            wireTestResultPanelCallbacks()
         }
 
         for ((name, case) in cases) {
@@ -354,23 +353,6 @@ class GeneralTestPanel(
 
     private fun handleStop() {
         cancelRequested = true
-    }
-
-    // --- Wire bottom panel callbacks ---
-
-    private fun wireTestResultPanelCallbacks() {
-        val panel = findTestResultPanel() ?: return
-        panel.onRunSingle = runSingle@{ key ->
-            val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand() ?: return@runSingle
-            if (key is TestCaseKey.General) {
-                runInBackground { handleRunSingle(key.name, command) }
-            }
-        }
-        panel.onRunAll = runAll@{
-            val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand() ?: return@runAll
-            runInBackground { handleRunAll(command) }
-        }
-        panel.onStop = { handleStop() }
     }
 
     // --- Helpers ---
@@ -449,7 +431,7 @@ class GeneralTestPanel(
     }
 
     private fun saveAllTestCasesOnEdt() {
-        runOnEdt { saveAllTestCases() }
+        ApplicationManager.getApplication().invokeAndWait { saveAllTestCases() }
     }
 
     private fun runInBackground(task: () -> Unit) {
@@ -461,7 +443,7 @@ class GeneralTestPanel(
     }
 
     override fun dispose() {
-        // clean up if needed
+        saveAllTestCases()
     }
 
     // --- Inner class: TestCaseEntryPanel ---
