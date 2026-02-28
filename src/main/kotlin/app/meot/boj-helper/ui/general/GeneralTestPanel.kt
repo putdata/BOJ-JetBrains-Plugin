@@ -23,6 +23,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
@@ -60,7 +61,7 @@ class GeneralTestPanel(
         GeneralTestCaseRepository(File(basePath, ".boj"))
     }
 
-    private var currentFileName: String? = null
+    private var currentFileKey: String? = null
     private val fileLabel = JLabel("파일을 열어주세요")
     private val testCaseListPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -145,14 +146,17 @@ class GeneralTestPanel(
         }
     }
 
+    private fun resolveFileKey(file: VirtualFile): String? {
+        val basePath = project.basePath ?: return file.name
+        return file.path.removePrefix(basePath).removePrefix("/")
+    }
+
     private fun detectCurrentFile() {
         val selectedFile = runCatching {
             FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
-        }.getOrNull()
-        val fileName = selectedFile?.name
-        if (fileName != null) {
-            switchToFile(fileName)
-        }
+        }.getOrNull() ?: return
+        val fileKey = resolveFileKey(selectedFile) ?: return
+        switchToFile(fileKey, selectedFile.name)
     }
 
     fun onTabSelected() {
@@ -163,10 +167,10 @@ class GeneralTestPanel(
         val selectedFile = runCatching {
             FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
         }.getOrNull()
-        val fileName = selectedFile?.name
-        if (fileName != currentFileName) {
+        val fileKey = selectedFile?.let { resolveFileKey(it) }
+        if (fileKey != currentFileKey) {
             saveAllTestCases()
-            switchToFile(fileName)
+            switchToFile(fileKey, selectedFile?.name)
         }
         updateRunBarCommands()
         syncTestResultPanel()
@@ -179,8 +183,8 @@ class GeneralTestPanel(
         testService.clearResults()
         testService.clearSampleInfo()
 
-        val fileName = currentFileName
-        val cases = if (fileName != null) repository.load(fileName) else emptyMap()
+        val fileKey = currentFileKey
+        val cases = if (fileKey != null) repository.load(fileKey) else emptyMap()
 
         if (cases.isEmpty()) {
             panel.populateEntries(0, emptyList(), emptyList())
@@ -215,14 +219,14 @@ class GeneralTestPanel(
         panel.onDeleteCustom = {}
     }
 
-    private fun switchToFile(fileName: String?) {
-        currentFileName = fileName
-        if (fileName == null) {
+    private fun switchToFile(fileKey: String?, displayName: String? = null) {
+        currentFileKey = fileKey
+        if (fileKey == null) {
             fileLabel.text = "파일을 열어주세요"
             clearTestCaseEntries()
             return
         }
-        fileLabel.text = fileName
+        fileLabel.text = displayName ?: fileKey
         updateRunBarCommands()
         if (resolveCurrentFileRunCommand() == null) {
             clearTestCaseEntries()
@@ -235,8 +239,8 @@ class GeneralTestPanel(
 
     private fun loadTestCases() {
         clearTestCaseEntries()
-        val fileName = currentFileName ?: return
-        val cases = repository.load(fileName)
+        val fileKey = currentFileKey ?: return
+        val cases = repository.load(fileKey)
         if (cases.isEmpty()) {
             addNewTestCase()
         } else {
@@ -261,9 +265,9 @@ class GeneralTestPanel(
     }
 
     private fun addNewTestCase() {
-        val fileName = currentFileName ?: return
+        val fileKey = currentFileKey ?: return
         if (resolveCurrentFileRunCommand() == null) return
-        val name = repository.nextAutoName(fileName)
+        val name = repository.nextAutoName(fileKey)
         addTestCaseEntry(name, "", "")
         testCaseListPanel.revalidate()
         testCaseListPanel.repaint()
@@ -282,8 +286,8 @@ class GeneralTestPanel(
     }
 
     private fun deleteTestCase(entry: TestCaseEntryPanel) {
-        val fileName = currentFileName ?: return
-        repository.delete(fileName, entry.testName)
+        val fileKey = currentFileKey ?: return
+        repository.delete(fileKey, entry.testName)
         testCaseEntries.remove(entry)
         testCaseListPanel.remove(entry)
         testCaseListPanel.revalidate()
@@ -291,13 +295,13 @@ class GeneralTestPanel(
     }
 
     fun saveAllTestCases() {
-        val fileName = currentFileName ?: return
+        val fileKey = currentFileKey ?: return
         for (entry in testCaseEntries) {
             val case = GeneralTestCase(
                 input = entry.getInput(),
                 expectedOutput = entry.getExpectedOutput(),
             )
-            repository.save(fileName, entry.testName, case)
+            repository.save(fileKey, entry.testName, case)
         }
     }
 
@@ -311,9 +315,9 @@ class GeneralTestPanel(
     private fun handleRunSingle(testName: String, command: String) {
         saveActiveEditorDocument()
         saveAllTestCasesOnEdt()
-        val fileName = currentFileName ?: return
+        val fileKey = currentFileKey ?: return
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
-        val case = repository.load(fileName)[testName] ?: return
+        val case = repository.load(fileKey)[testName] ?: return
         val key = TestCaseKey.General(testName)
 
         runOnEdt {
@@ -348,9 +352,9 @@ class GeneralTestPanel(
     private fun handleRunAll(command: String) {
         saveActiveEditorDocument()
         saveAllTestCasesOnEdt()
-        val fileName = currentFileName ?: return
+        val fileKey = currentFileKey ?: return
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
-        val cases = repository.load(fileName)
+        val cases = repository.load(fileKey)
         if (cases.isEmpty()) return
 
         var passedCount = 0

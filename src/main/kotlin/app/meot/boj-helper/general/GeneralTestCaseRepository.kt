@@ -10,8 +10,8 @@ data class GeneralTestCase(
 class GeneralTestCaseRepository(
     private val baseDir: File,
 ) {
-    fun load(fileName: String): Map<String, GeneralTestCase> {
-        val dir = caseDir(fileName)
+    fun load(fileKey: String): Map<String, GeneralTestCase> {
+        val dir = caseDir(fileKey)
         if (!dir.isDirectory) return emptyMap()
 
         val inFiles = dir.listFiles()?.filter { it.extension == "in" } ?: return emptyMap()
@@ -24,23 +24,23 @@ class GeneralTestCaseRepository(
         }
     }
 
-    fun save(fileName: String, testName: String, case: GeneralTestCase) {
-        val dir = caseDir(fileName)
+    fun save(fileKey: String, testName: String, case: GeneralTestCase) {
+        val dir = caseDir(fileKey)
         dir.mkdirs()
         val safeName = sanitizeFileName(testName)
         File(dir, "$safeName.in").writeText(case.input)
         File(dir, "$safeName.out").writeText(case.expectedOutput)
     }
 
-    fun delete(fileName: String, testName: String) {
-        val dir = caseDir(fileName)
+    fun delete(fileKey: String, testName: String) {
+        val dir = caseDir(fileKey)
         val safeName = sanitizeFileName(testName)
         File(dir, "$safeName.in").delete()
         File(dir, "$safeName.out").delete()
     }
 
-    fun nextAutoName(fileName: String): String {
-        val existing = load(fileName).keys
+    fun nextAutoName(fileKey: String): String {
+        val existing = load(fileKey).keys
         var counter = 1
         while ("$counter" in existing) {
             counter++
@@ -48,8 +48,8 @@ class GeneralTestCaseRepository(
         return "$counter"
     }
 
-    private fun caseDir(fileName: String): File =
-        File(baseDir, "general-cases/${sanitizeFileName(fileName)}")
+    private fun caseDir(fileKey: String): File =
+        File(baseDir, "general-cases/$fileKey")
 
     companion object {
         fun sanitizeFileName(name: String): String =
