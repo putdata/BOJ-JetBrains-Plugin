@@ -395,6 +395,9 @@ class BojToolWindowPanel(
                         runOnEdt { findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message)) }
                     }
                 }
+                is TestCaseKey.General -> {
+                    // General 케이스는 GeneralTestPanel에서 처리
+                }
             }
         } finally {
             runOnEdt { findTestResultPanel()?.setRunningState(false) }
