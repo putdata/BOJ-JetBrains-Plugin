@@ -18,6 +18,7 @@ import com.boj.intellij.service.TestResultService
 import com.boj.intellij.ui.custom.AddCustomTestCaseDialog
 import com.boj.intellij.ui.custom.ManageCustomTestCasesDialog
 import com.boj.intellij.ui.testresult.BojTestResultPanel
+import com.boj.intellij.ui.testresult.PanelMode
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
@@ -560,6 +561,7 @@ class BojToolWindowPanel(
     }
 
     fun onTabSelected() {
+        findTestResultPanel()?.setMode(PanelMode.BOJ)
         autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
         updateRunBarCommands()
 
