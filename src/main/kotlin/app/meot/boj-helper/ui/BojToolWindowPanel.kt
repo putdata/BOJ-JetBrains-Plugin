@@ -191,12 +191,20 @@ class BojToolWindowPanel(
         }
     }
 
+    private fun isActiveTab(): Boolean {
+        return runCatching {
+            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("BOJ") ?: return false
+            toolWindow.contentManager.selectedContent?.component === this
+        }.getOrDefault(false)
+    }
+
     private fun wireCurrentFileTracking() {
         runCatching {
             project.messageBus.connect(project).subscribe(
                 FileEditorManagerListener.FILE_EDITOR_MANAGER,
                 object : FileEditorManagerListener {
                     override fun selectionChanged(event: FileEditorManagerEvent) {
+                        if (!isActiveTab()) return
                         autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
                         updateRunBarCommands()
                     }
@@ -301,21 +309,23 @@ class BojToolWindowPanel(
         updateRunBarCommands()
         runBarPanel.updateStatus("실행 대기 중")
 
-        // 하단 ToolWindow에 예제 정보 전달
-        val testService = findTestResultService()
-        testService?.clearResults()
-        testService?.clearSampleInfo()
-        problem.samplePairs.forEachIndexed { index, pair ->
-            testService?.setSampleInfo(index, pair.input, pair.output)
-        }
-        syncCustomCasesToTestResultService()
-        wireTestResultPanelCallbacks()
+        // 하단 ToolWindow에 예제 정보 전달 (현재 탭이 활성 상태일 때만)
+        if (isActiveTab()) {
+            val testService = findTestResultService()
+            testService?.clearResults()
+            testService?.clearSampleInfo()
+            problem.samplePairs.forEachIndexed { index, pair ->
+                testService?.setSampleInfo(index, pair.input, pair.output)
+            }
+            syncCustomCasesToTestResultService()
+            wireTestResultPanelCallbacks()
 
-        // 테스트 목록 미리 표시
-        val testResultPanel = findTestResultPanel()
-        val customKeys = customTestCaseRepository.load(currentProblemNumber ?: "")
-            .keys.map { TestCaseKey.Custom(it) }
-        testResultPanel?.populateEntries(problem.samplePairs.size, customKeys)
+            // 테스트 목록 미리 표시
+            val testResultPanel = findTestResultPanel()
+            val customKeys = customTestCaseRepository.load(currentProblemNumber ?: "")
+                .keys.map { TestCaseKey.Custom(it) }
+            testResultPanel?.populateEntries(problem.samplePairs.size, customKeys)
+        }
     }
 
     // --- JS↔Kotlin 통신 처리 ---
@@ -550,6 +560,9 @@ class BojToolWindowPanel(
     }
 
     fun onTabSelected() {
+        autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
+        updateRunBarCommands()
+
         val testService = findTestResultService() ?: return
         val panel = findTestResultPanel() ?: return
 

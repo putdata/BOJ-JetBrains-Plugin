@@ -142,13 +142,13 @@ class BojTestResultPanel(
         for (generalKey in generalKeys) {
             listModel.addElement(TestResultEntry(key = generalKey))
         }
-        if (listModel.size() > 0) {
-            resultList.selectedIndex = 0
-        }
         summaryText = "실행 대기 중"
         inputArea.text = ""
         expectedArea.text = ""
         actualArea.text = ""
+        if (listModel.size() > 0) {
+            resultList.selectedIndex = 0
+        }
     }
 
     fun setRunning(key: TestCaseKey) {

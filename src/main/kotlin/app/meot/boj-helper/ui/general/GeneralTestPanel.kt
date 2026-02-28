@@ -124,12 +124,20 @@ class GeneralTestPanel(
 
     // --- File tracking ---
 
+    private fun isActiveTab(): Boolean {
+        return runCatching {
+            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("BOJ") ?: return false
+            toolWindow.contentManager.selectedContent?.component === this
+        }.getOrDefault(false)
+    }
+
     private fun wireCurrentFileTracking() {
         runCatching {
             project.messageBus.connect(project).subscribe(
                 FileEditorManagerListener.FILE_EDITOR_MANAGER,
                 object : FileEditorManagerListener {
                     override fun selectionChanged(event: FileEditorManagerEvent) {
+                        if (!isActiveTab()) return
                         onFileChanged()
                     }
                 },
@@ -148,6 +156,23 @@ class GeneralTestPanel(
     }
 
     fun onTabSelected() {
+        onFileChanged()
+    }
+
+    private fun onFileChanged() {
+        val selectedFile = runCatching {
+            FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
+        }.getOrNull()
+        val fileName = selectedFile?.name
+        if (fileName != currentFileName) {
+            saveAllTestCases()
+            switchToFile(fileName)
+        }
+        updateRunBarCommands()
+        syncTestResultPanel()
+    }
+
+    private fun syncTestResultPanel() {
         val testService = findTestResultService() ?: return
         val panel = findTestResultPanel() ?: return
 
@@ -188,18 +213,6 @@ class GeneralTestPanel(
         panel.onManageCustom = {}
         panel.onEditCustom = {}
         panel.onDeleteCustom = {}
-    }
-
-    private fun onFileChanged() {
-        val selectedFile = runCatching {
-            FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
-        }.getOrNull()
-        val fileName = selectedFile?.name
-        if (fileName != currentFileName) {
-            saveAllTestCases()
-            switchToFile(fileName)
-        }
-        updateRunBarCommands()
     }
 
     private fun switchToFile(fileName: String?) {
