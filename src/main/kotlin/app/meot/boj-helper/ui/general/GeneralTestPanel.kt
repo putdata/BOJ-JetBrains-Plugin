@@ -523,7 +523,7 @@ class GeneralTestPanel(
         private fun buildHeader(): JPanel {
             val panel = JPanel(BorderLayout())
 
-            val nameLabel = JLabel(testName)
+            val nameLabel = JLabel("Test $testName")
             nameLabel.font = nameLabel.font.deriveFont(Font.BOLD)
             panel.add(nameLabel, BorderLayout.CENTER)
 

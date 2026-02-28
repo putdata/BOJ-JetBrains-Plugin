@@ -455,7 +455,7 @@ data class TestResultEntry(
     override fun toString(): String = when (key) {
         is TestCaseKey.Sample -> "예제 ${key.index + 1}"
         is TestCaseKey.Custom -> key.name
-        is TestCaseKey.General -> key.name
+        is TestCaseKey.General -> "Test ${key.name}"
     }
 }
 
