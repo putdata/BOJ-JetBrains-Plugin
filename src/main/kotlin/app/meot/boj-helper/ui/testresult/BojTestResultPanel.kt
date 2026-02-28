@@ -53,7 +53,7 @@ class BojTestResultPanel(
     var onAddGeneral: () -> Unit = {}
     var onEditGeneral: (name: String) -> Unit = {}
     var onDeleteGeneral: (name: String) -> Unit = {}
-    var onGeneralCaseEdited: (name: String, input: String, expectedOutput: String) -> Unit = { _, _, _ -> }
+
 
     private var currentMode: PanelMode = PanelMode.BOJ
     private var lastSelectedKey: TestCaseKey? = null
@@ -92,7 +92,6 @@ class BojTestResultPanel(
         resultList.cellRenderer = TestResultCellRenderer()
         resultList.addListSelectionListener { event ->
             if (!event.valueIsAdjusting) {
-                saveEditedContent()
                 val selected = resultList.selectedValue
                 if (selected != null) {
                     lastSelectedKey = selected.key
@@ -141,8 +140,6 @@ class BojTestResultPanel(
 
     fun setMode(mode: PanelMode) {
         currentMode = mode
-        inputArea.isEditable = mode == PanelMode.GENERAL
-        expectedArea.isEditable = mode == PanelMode.GENERAL
     }
 
     fun populateEntries(
@@ -150,7 +147,6 @@ class BojTestResultPanel(
         customKeys: List<TestCaseKey.Custom>,
         generalKeys: List<TestCaseKey.General> = emptyList(),
     ) {
-        saveEditedContent()
         lastSelectedKey = null
         listModel.clear()
         for (i in 0 until sampleCount) {
@@ -352,12 +348,6 @@ class BojTestResultPanel(
         }
     }
 
-    private fun saveEditedContent() {
-        val key = lastSelectedKey
-        if (currentMode == PanelMode.GENERAL && key is TestCaseKey.General) {
-            onGeneralCaseEdited(key.name, inputArea.text, expectedArea.text)
-        }
-    }
 
     private fun showContextMenu(e: java.awt.event.MouseEvent) {
         val index = resultList.locationToIndex(e.point) ?: return

@@ -229,9 +229,6 @@ class GeneralTestPanel(
         panel.onAddGeneral = { addNewTestCase() }
         panel.onDeleteGeneral = { name -> deleteTestCaseByName(name) }
         panel.onEditGeneral = { name -> editTestCaseByName(name) }
-        panel.onGeneralCaseEdited = { name, input, expectedOutput ->
-            updateTestCaseFromPanel(name, input, expectedOutput)
-        }
 
         // Custom 콜백 비활성화
         panel.onAddCustom = {}
@@ -495,14 +492,6 @@ class GeneralTestPanel(
     private fun editTestCaseByName(name: String) {
         val entry = testCaseEntries.find { it.testName == name } ?: return
         editTestCase(entry)
-    }
-
-    private fun updateTestCaseFromPanel(name: String, input: String, expectedOutput: String) {
-        val fileKey = currentFileKey ?: return
-        val entry = testCaseEntries.find { it.testName == name } ?: return
-        entry.setInput(input)
-        entry.setExpectedOutput(expectedOutput)
-        repository.save(fileKey, name, TestCase(input = input, expectedOutput = expectedOutput))
     }
 
     private fun createErrorResult(expectedOutput: String, errorMessage: String): SampleRunResult {
