@@ -2,14 +2,16 @@ package com.boj.intellij.common
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import kotlin.io.path.createTempDirectory
 
 class TestCaseRepositoryTest {
 
+    @TempDir
+    lateinit var baseDir: File
+
     @Test
     fun `save and load single custom case`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.CUSTOM)
 
         val case = TestCase(input = "5\n3 1 2 5 4", expectedOutput = "1 2 3 4 5")
@@ -31,7 +33,6 @@ class TestCaseRepositoryTest {
 
     @Test
     fun `save case with null expectedOutput`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.CUSTOM)
 
         val case = TestCase(input = "hello", expectedOutput = null)
@@ -50,7 +51,6 @@ class TestCaseRepositoryTest {
 
     @Test
     fun `load returns empty map for nonexistent problem`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.CUSTOM)
 
         val loaded = repo.load("9999")
@@ -59,7 +59,6 @@ class TestCaseRepositoryTest {
 
     @Test
     fun `delete removes case files`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.CUSTOM)
 
         repo.save("3000", "삭제할케이스", TestCase("input", "output"))
@@ -76,7 +75,6 @@ class TestCaseRepositoryTest {
 
     @Test
     fun `nextAutoName generates incrementing names for custom`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.CUSTOM)
 
         assertEquals("커스텀 1", repo.nextAutoName("4000"))
@@ -88,7 +86,6 @@ class TestCaseRepositoryTest {
 
     @Test
     fun `nextAutoName generates incrementing names for general`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.GENERAL)
 
         assertEquals("1", repo.nextAutoName("main.py"))
@@ -98,7 +95,6 @@ class TestCaseRepositoryTest {
 
     @Test
     fun `general config loads missing output as empty string`() {
-        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.GENERAL)
 
         // .in 파일만 직접 생성 (.out 없이)
