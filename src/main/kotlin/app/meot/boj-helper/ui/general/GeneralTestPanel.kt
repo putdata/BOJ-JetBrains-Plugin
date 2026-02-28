@@ -154,9 +154,13 @@ class GeneralTestPanel(
         testService.clearResults()
         testService.clearSampleInfo()
 
-        val fileName = currentFileName ?: return
-        val cases = repository.load(fileName)
-        if (cases.isEmpty()) return
+        val fileName = currentFileName
+        val cases = if (fileName != null) repository.load(fileName) else emptyMap()
+
+        if (cases.isEmpty()) {
+            panel.populateEntries(0, emptyList(), emptyList())
+            return
+        }
 
         testService.clearGeneralCaseInfo()
         for ((name, case) in cases) {
