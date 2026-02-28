@@ -36,6 +36,8 @@ import javax.swing.JTextArea
 import javax.swing.ListCellRenderer
 import javax.swing.UIManager
 
+enum class PanelMode { BOJ, GENERAL }
+
 class BojTestResultPanel(
     private val project: Project,
 ) : SimpleToolWindowPanel(false), Disposable {
@@ -47,6 +49,14 @@ class BojTestResultPanel(
     var onRunSingle: (key: TestCaseKey) -> Unit = {}
     var onRunAll: () -> Unit = {}
     var onStop: () -> Unit = {}
+
+    var onAddGeneral: () -> Unit = {}
+    var onEditGeneral: (name: String) -> Unit = {}
+    var onDeleteGeneral: (name: String) -> Unit = {}
+    var onGeneralCaseEdited: (name: String, input: String, expectedOutput: String) -> Unit = { _, _, _ -> }
+
+    private var currentMode: PanelMode = PanelMode.BOJ
+    private var lastSelectedKey: TestCaseKey? = null
 
     private var isRunning = false
 
@@ -82,8 +92,10 @@ class BojTestResultPanel(
         resultList.cellRenderer = TestResultCellRenderer()
         resultList.addListSelectionListener { event ->
             if (!event.valueIsAdjusting) {
+                saveEditedContent()
                 val selected = resultList.selectedValue
                 if (selected != null) {
+                    lastSelectedKey = selected.key
                     showDetail(selected)
                 }
             }
@@ -127,11 +139,19 @@ class BojTestResultPanel(
 
     fun getTestResultService(): TestResultService = testResultService
 
+    fun setMode(mode: PanelMode) {
+        currentMode = mode
+        inputArea.isEditable = mode == PanelMode.GENERAL
+        expectedArea.isEditable = mode == PanelMode.GENERAL
+    }
+
     fun populateEntries(
         sampleCount: Int,
         customKeys: List<TestCaseKey.Custom>,
         generalKeys: List<TestCaseKey.General> = emptyList(),
     ) {
+        saveEditedContent()
+        lastSelectedKey = null
         listModel.clear()
         for (i in 0 until sampleCount) {
             listModel.addElement(TestResultEntry(key = TestCaseKey.Sample(i)))
@@ -332,20 +352,41 @@ class BojTestResultPanel(
         }
     }
 
+    private fun saveEditedContent() {
+        val key = lastSelectedKey
+        if (currentMode == PanelMode.GENERAL && key is TestCaseKey.General) {
+            onGeneralCaseEdited(key.name, inputArea.text, expectedArea.text)
+        }
+    }
+
     private fun showContextMenu(e: java.awt.event.MouseEvent) {
         val index = resultList.locationToIndex(e.point) ?: return
         val entry = listModel.getElementAt(index) ?: return
         val key = entry.key
-        if (key !is TestCaseKey.Custom) return
 
         resultList.selectedIndex = index
         val menu = javax.swing.JPopupMenu()
-        val editItem = javax.swing.JMenuItem("편집")
-        val deleteItem = javax.swing.JMenuItem("삭제")
-        editItem.addActionListener { onEditCustom(key.name) }
-        deleteItem.addActionListener { onDeleteCustom(key.name) }
-        menu.add(editItem)
-        menu.add(deleteItem)
+
+        when (key) {
+            is TestCaseKey.Custom -> {
+                val editItem = javax.swing.JMenuItem("편집")
+                val deleteItem = javax.swing.JMenuItem("삭제")
+                editItem.addActionListener { onEditCustom(key.name) }
+                deleteItem.addActionListener { onDeleteCustom(key.name) }
+                menu.add(editItem)
+                menu.add(deleteItem)
+            }
+            is TestCaseKey.General -> {
+                val editItem = javax.swing.JMenuItem("편집")
+                val deleteItem = javax.swing.JMenuItem("삭제")
+                editItem.addActionListener { onEditGeneral(key.name) }
+                deleteItem.addActionListener { onDeleteGeneral(key.name) }
+                menu.add(editItem)
+                menu.add(deleteItem)
+            }
+            else -> return
+        }
+
         menu.show(resultList, e.x, e.y)
     }
 
@@ -417,12 +458,15 @@ class BojTestResultPanel(
     }
 
     private inner class AddCustomAction : AnAction(
-        "커스텀 추가",
-        "커스텀 테스트 케이스 추가",
+        "추가",
+        "테스트 케이스 추가",
         AllIcons.General.Add,
     ) {
         override fun actionPerformed(e: AnActionEvent) {
-            onAddCustom()
+            when (currentMode) {
+                PanelMode.BOJ -> onAddCustom()
+                PanelMode.GENERAL -> onAddGeneral()
+            }
         }
     }
 
@@ -432,7 +476,14 @@ class BojTestResultPanel(
         AllIcons.Actions.Edit,
     ) {
         override fun actionPerformed(e: AnActionEvent) {
-            onManageCustom()
+            when (currentMode) {
+                PanelMode.BOJ -> onManageCustom()
+                PanelMode.GENERAL -> {}
+            }
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isVisible = currentMode == PanelMode.BOJ
         }
     }
 
