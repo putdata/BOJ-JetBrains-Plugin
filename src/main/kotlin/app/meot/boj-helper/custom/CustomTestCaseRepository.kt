@@ -9,28 +9,33 @@ class CustomTestCaseRepository(
         val dir = problemDir(problemId)
         if (!dir.isDirectory) return emptyMap()
 
-        return dir.listFiles()
-            ?.filter { it.extension == "json" }
-            ?.associate { file ->
-                val name = file.nameWithoutExtension
-                val case = parseJson(file.readText())
-                name to case
-            }
-            ?: emptyMap()
+        val inFiles = dir.listFiles()?.filter { it.extension == "in" } ?: return emptyMap()
+        return inFiles.associate { inFile ->
+            val name = inFile.nameWithoutExtension
+            val input = inFile.readText()
+            val outFile = File(dir, "$name.out")
+            val expectedOutput = if (outFile.exists()) outFile.readText() else null
+            name to CustomTestCase(input = input, expectedOutput = expectedOutput)
+        }
     }
 
     fun save(problemId: String, name: String, case: CustomTestCase) {
         val dir = problemDir(problemId)
         dir.mkdirs()
-        val fileName = sanitizeFileName(name)
-        val file = File(dir, "$fileName.json")
-        file.writeText(toJson(case))
+        val safeName = sanitizeFileName(name)
+        File(dir, "$safeName.in").writeText(case.input)
+        if (case.expectedOutput != null) {
+            File(dir, "$safeName.out").writeText(case.expectedOutput)
+        } else {
+            File(dir, "$safeName.out").delete()
+        }
     }
 
     fun delete(problemId: String, name: String) {
-        val fileName = sanitizeFileName(name)
-        val file = File(problemDir(problemId), "$fileName.json")
-        file.delete()
+        val dir = problemDir(problemId)
+        val safeName = sanitizeFileName(name)
+        File(dir, "$safeName.in").delete()
+        File(dir, "$safeName.out").delete()
     }
 
     fun nextAutoName(problemId: String): String {
@@ -48,43 +53,5 @@ class CustomTestCaseRepository(
     companion object {
         fun sanitizeFileName(name: String): String =
             name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
-
-        private fun toJson(case: CustomTestCase): String {
-            val escapedInput = escapeJsonString(case.input)
-            val expectedPart = if (case.expectedOutput != null) {
-                "\"expectedOutput\": \"${escapeJsonString(case.expectedOutput)}\""
-            } else {
-                "\"expectedOutput\": null"
-            }
-            return "{\n  \"input\": \"$escapedInput\",\n  $expectedPart\n}"
-        }
-
-        private fun parseJson(json: String): CustomTestCase {
-            val input = extractJsonStringValue(json, "input") ?: ""
-            val expectedOutput = extractJsonStringValue(json, "expectedOutput")
-            return CustomTestCase(input = input, expectedOutput = expectedOutput)
-        }
-
-        private fun escapeJsonString(value: String): String =
-            value
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t")
-
-        private fun extractJsonStringValue(json: String, key: String): String? {
-            val nullPattern = "\"${Regex.escape(key)}\"\\s*:\\s*null".toRegex()
-            if (nullPattern.containsMatchIn(json)) return null
-
-            val pattern = "\"${Regex.escape(key)}\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"".toRegex()
-            val raw = pattern.find(json)?.groupValues?.get(1) ?: return null
-            return raw
-                .replace("\\\"", "\"")
-                .replace("\\\\", "\\")
-                .replace("\\n", "\n")
-                .replace("\\r", "\r")
-                .replace("\\t", "\t")
-        }
     }
 }

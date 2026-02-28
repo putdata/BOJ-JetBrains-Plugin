@@ -1,40 +1,56 @@
 package com.boj.intellij.custom
 
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.io.File
 import kotlin.io.path.createTempDirectory
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class CustomTestCaseRepositoryTest {
+
     @Test
     fun `save and load single custom case`() {
-        val baseDir = createTempDirectory("boj-custom").toFile()
+        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = CustomTestCaseRepository(baseDir)
 
-        val case = CustomTestCase(input = "1 2", expectedOutput = "3")
+        val case = CustomTestCase(input = "5\n3 1 2 5 4", expectedOutput = "1 2 3 4 5")
         repo.save("1000", "기본 테스트", case)
+
+        // .in/.out 파일이 생성되었는지 확인
+        val inFile = File(baseDir, "custom-cases/1000/기본 테스트.in")
+        val outFile = File(baseDir, "custom-cases/1000/기본 테스트.out")
+        assertTrue(inFile.exists())
+        assertTrue(outFile.exists())
+        assertEquals("5\n3 1 2 5 4", inFile.readText())
+        assertEquals("1 2 3 4 5", outFile.readText())
 
         val loaded = repo.load("1000")
         assertEquals(1, loaded.size)
-        assertEquals("기본 테스트", loaded.keys.first())
-        assertEquals(case, loaded.values.first())
+        assertEquals("5\n3 1 2 5 4", loaded["기본 테스트"]?.input)
+        assertEquals("1 2 3 4 5", loaded["기본 테스트"]?.expectedOutput)
     }
 
     @Test
     fun `save case with null expectedOutput`() {
-        val baseDir = createTempDirectory("boj-custom").toFile()
+        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = CustomTestCaseRepository(baseDir)
 
-        val case = CustomTestCase(input = "5", expectedOutput = null)
-        repo.save("1000", "디버깅용", case)
+        val case = CustomTestCase(input = "hello", expectedOutput = null)
+        repo.save("2000", "디버깅용", case)
 
-        val loaded = repo.load("1000")
-        assertEquals(null, loaded["디버깅용"]?.expectedOutput)
+        // .out 파일이 생성되지 않아야 함
+        val inFile = File(baseDir, "custom-cases/2000/디버깅용.in")
+        val outFile = File(baseDir, "custom-cases/2000/디버깅용.out")
+        assertTrue(inFile.exists())
+        assertFalse(outFile.exists())
+
+        val loaded = repo.load("2000")
+        assertEquals("hello", loaded["디버깅용"]?.input)
+        assertNull(loaded["디버깅용"]?.expectedOutput)
     }
 
     @Test
     fun `load returns empty map for nonexistent problem`() {
-        val baseDir = createTempDirectory("boj-custom").toFile()
+        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = CustomTestCaseRepository(baseDir)
 
         val loaded = repo.load("9999")
@@ -42,35 +58,37 @@ class CustomTestCaseRepositoryTest {
     }
 
     @Test
-    fun `delete removes case file`() {
-        val baseDir = createTempDirectory("boj-custom").toFile()
+    fun `delete removes case files`() {
+        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = CustomTestCaseRepository(baseDir)
 
-        repo.save("1000", "삭제할케이스", CustomTestCase("1", "2"))
-        repo.delete("1000", "삭제할케이스")
+        repo.save("3000", "삭제할케이스", CustomTestCase("input", "output"))
+        repo.delete("3000", "삭제할케이스")
 
-        val loaded = repo.load("1000")
+        val inFile = File(baseDir, "custom-cases/3000/삭제할케이스.in")
+        val outFile = File(baseDir, "custom-cases/3000/삭제할케이스.out")
+        assertFalse(inFile.exists())
+        assertFalse(outFile.exists())
+
+        val loaded = repo.load("3000")
         assertTrue(loaded.isEmpty())
     }
 
     @Test
     fun `nextAutoName generates incrementing names`() {
-        val baseDir = createTempDirectory("boj-custom").toFile()
+        val baseDir = createTempDirectory("boj-test").toFile()
         val repo = CustomTestCaseRepository(baseDir)
 
-        assertEquals("커스텀 1", repo.nextAutoName("1000"))
-
-        repo.save("1000", "커스텀 1", CustomTestCase("a", "b"))
-        assertEquals("커스텀 2", repo.nextAutoName("1000"))
-
-        repo.save("1000", "커스텀 2", CustomTestCase("c", "d"))
-        assertEquals("커스텀 3", repo.nextAutoName("1000"))
+        assertEquals("커스텀 1", repo.nextAutoName("4000"))
+        repo.save("4000", "커스텀 1", CustomTestCase("a", null))
+        assertEquals("커스텀 2", repo.nextAutoName("4000"))
+        repo.save("4000", "커스텀 2", CustomTestCase("b", null))
+        assertEquals("커스텀 3", repo.nextAutoName("4000"))
     }
 
     @Test
     fun `sanitizeFileName replaces invalid characters`() {
         assertEquals("test_case", CustomTestCaseRepository.sanitizeFileName("test/case"))
-        assertEquals("test_case", CustomTestCaseRepository.sanitizeFileName("test\\case"))
-        assertEquals("test_case", CustomTestCaseRepository.sanitizeFileName("test:case"))
+        assertEquals("a_b_c", CustomTestCaseRepository.sanitizeFileName("a\\b:c"))
     }
 }
