@@ -263,6 +263,7 @@ class GeneralTestPanel(
             panel?.setRunning(key)
             panel?.setRunningState(true)
             showTestResultToolWindow()
+            wireTestResultPanelCallbacks()
         }
 
         try {
@@ -311,6 +312,7 @@ class GeneralTestPanel(
             panel?.setRunningState(true)
             panel?.setAllRunning()
             showTestResultToolWindow()
+            wireTestResultPanelCallbacks()
         }
 
         for ((name, case) in cases) {
