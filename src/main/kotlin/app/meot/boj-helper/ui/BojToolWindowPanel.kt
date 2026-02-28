@@ -1,6 +1,7 @@
 package com.boj.intellij.ui
 
-import com.boj.intellij.custom.CustomTestCaseRepository
+import com.boj.intellij.common.TestCaseRepository
+import com.boj.intellij.common.TestCaseRepositoryConfig
 import com.boj.intellij.fetch.BojFetchService
 import com.boj.intellij.fetch.HttpBojFetchService
 import com.boj.intellij.parse.BojHtmlParser
@@ -15,7 +16,8 @@ import com.boj.intellij.sample_run.SampleRunService
 import com.boj.intellij.settings.BojSettings
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
-import com.boj.intellij.ui.custom.AddCustomTestCaseDialog
+import com.boj.intellij.ui.common.AddTestCaseDialog
+import com.boj.intellij.ui.common.TestCaseDialogConfig
 import com.boj.intellij.ui.custom.ManageCustomTestCasesDialog
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.boj.intellij.ui.testresult.PanelMode
@@ -98,9 +100,9 @@ class BojToolWindowPanel(
     private var currentParsedProblem: ParsedProblem? = null
     private var isFetchInProgress: Boolean = false
     private var lastFetchedProblemNumber: String? = null
-    private val customTestCaseRepository: CustomTestCaseRepository by lazy {
+    private val customTestCaseRepository: TestCaseRepository by lazy {
         val basePath = project.basePath ?: throw IllegalStateException("Project basePath is null")
-        CustomTestCaseRepository(File(basePath, ".boj"))
+        TestCaseRepository(File(basePath, ".boj"), TestCaseRepositoryConfig.CUSTOM)
     }
 
     private val baseLabelColor = UIManager.getColor("Label.foreground") ?: Color(0x333333)
@@ -521,10 +523,10 @@ class BojToolWindowPanel(
     private fun showAddCustomTestCaseDialog() {
         val problemId = currentProblemNumber ?: return
         val defaultName = customTestCaseRepository.nextAutoName(problemId)
-        val dialog = AddCustomTestCaseDialog(project, defaultName)
+        val dialog = AddTestCaseDialog(project, TestCaseDialogConfig.CUSTOM, defaultName)
         if (dialog.showAndGet()) {
             val name = dialog.getCaseName().ifBlank { defaultName }
-            customTestCaseRepository.save(problemId, name, dialog.getCustomTestCase())
+            customTestCaseRepository.save(problemId, name, dialog.getTestCase())
             refreshTestResultPanel()
         }
     }
@@ -607,13 +609,13 @@ class BojToolWindowPanel(
     private fun showEditCustomTestCaseDialog(name: String) {
         val problemId = currentProblemNumber ?: return
         val existingCase = customTestCaseRepository.load(problemId)[name] ?: return
-        val dialog = AddCustomTestCaseDialog(project, name, existingCase)
+        val dialog = AddTestCaseDialog(project, TestCaseDialogConfig.CUSTOM, name, existingCase)
         if (dialog.showAndGet()) {
             val newName = dialog.getCaseName().ifBlank { name }
             if (newName != name) {
                 customTestCaseRepository.delete(problemId, name)
             }
-            customTestCaseRepository.save(problemId, newName, dialog.getCustomTestCase())
+            customTestCaseRepository.save(problemId, newName, dialog.getTestCase())
             refreshTestResultPanel()
         }
     }

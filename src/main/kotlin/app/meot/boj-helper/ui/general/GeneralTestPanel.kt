@@ -1,7 +1,8 @@
 package com.boj.intellij.ui.general
 
-import com.boj.intellij.general.GeneralTestCase
-import com.boj.intellij.general.GeneralTestCaseRepository
+import com.boj.intellij.common.TestCase
+import com.boj.intellij.common.TestCaseRepository
+import com.boj.intellij.common.TestCaseRepositoryConfig
 import com.boj.intellij.sample_run.OutputComparisonResult
 import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
@@ -14,6 +15,8 @@ import com.boj.intellij.ui.BojToolWindowPanel
 import com.boj.intellij.ui.PythonInterpreterResolver
 import com.boj.intellij.ui.RunBarPanel
 import com.boj.intellij.ui.RunConfigurationCommandResolver
+import com.boj.intellij.ui.common.AddTestCaseDialog
+import com.boj.intellij.ui.common.TestCaseDialogConfig
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.boj.intellij.ui.testresult.PanelMode
 import com.intellij.icons.AllIcons
@@ -58,9 +61,9 @@ class GeneralTestPanel(
         },
 ) : JPanel(BorderLayout()), Disposable {
 
-    private val repository: GeneralTestCaseRepository by lazy {
+    private val repository: TestCaseRepository by lazy {
         val basePath = project.basePath ?: throw IllegalStateException("Project basePath is null")
-        GeneralTestCaseRepository(File(basePath, ".boj"))
+        TestCaseRepository(File(basePath, ".boj"), TestCaseRepositoryConfig.GENERAL)
     }
 
     private var currentFileKey: String? = null
@@ -264,7 +267,7 @@ class GeneralTestPanel(
         } else {
             updateEmptyState(false)
             for ((name, case) in cases) {
-                addTestCaseEntry(name, case.input, case.expectedOutput)
+                addTestCaseEntry(name, case.input, case.expectedOutput ?: "")
             }
         }
         testCaseListPanel.revalidate()
@@ -287,13 +290,13 @@ class GeneralTestPanel(
         val fileKey = currentFileKey ?: return
         if (resolveCurrentFileRunCommand() == null) return
         val defaultName = repository.nextAutoName(fileKey)
-        val dialog = AddGeneralTestCaseDialog(project, defaultName)
+        val dialog = AddTestCaseDialog(project, TestCaseDialogConfig.GENERAL, defaultName)
         if (!dialog.showAndGet()) return
         val name = dialog.getCaseName().ifBlank { defaultName }
-        val case = dialog.getGeneralTestCase()
+        val case = dialog.getTestCase()
         repository.save(fileKey, name, case)
         updateEmptyState(false)
-        addTestCaseEntry(name, case.input, case.expectedOutput)
+        addTestCaseEntry(name, case.input, case.expectedOutput ?: "")
         testCaseListPanel.revalidate()
         testCaseListPanel.repaint()
         syncTestResultPanel()
@@ -301,14 +304,14 @@ class GeneralTestPanel(
 
     private fun editTestCase(entry: TestCaseEntryPanel) {
         val fileKey = currentFileKey ?: return
-        val existingCase = GeneralTestCase(
+        val existingCase = TestCase(
             input = entry.getInput(),
             expectedOutput = entry.getExpectedOutput(),
         )
-        val dialog = AddGeneralTestCaseDialog(project, entry.testName, existingCase)
+        val dialog = AddTestCaseDialog(project, TestCaseDialogConfig.GENERAL, entry.testName, existingCase)
         if (!dialog.showAndGet()) return
         val newName = dialog.getCaseName().ifBlank { entry.testName }
-        val newCase = dialog.getGeneralTestCase()
+        val newCase = dialog.getTestCase()
         if (newName != entry.testName) {
             repository.delete(fileKey, entry.testName)
         }
@@ -353,7 +356,7 @@ class GeneralTestPanel(
     fun saveAllTestCases() {
         val fileKey = currentFileKey ?: return
         for (entry in testCaseEntries) {
-            val case = GeneralTestCase(
+            val case = TestCase(
                 input = entry.getInput(),
                 expectedOutput = entry.getExpectedOutput(),
             )
@@ -388,7 +391,8 @@ class GeneralTestPanel(
         }
 
         try {
-            val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput)
+            val expectedOutput = case.expectedOutput ?: ""
+            val sampleCase = SampleCase(input = case.input, expectedOutput = expectedOutput)
             val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
             runOnEdt {
                 findTestResultService()?.addResult(key, result)
@@ -397,7 +401,7 @@ class GeneralTestPanel(
         } catch (exception: Exception) {
             val message = exception.message ?: exception::class.simpleName.orEmpty()
             runOnEdt {
-                findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput, message))
+                findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message))
                 showTestResultToolWindow()
             }
         } finally {
@@ -440,7 +444,8 @@ class GeneralTestPanel(
             val key = TestCaseKey.General(name)
             runOnEdt { findTestResultPanel()?.setRunning(key) }
 
-            val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput)
+            val expectedOutput = case.expectedOutput ?: ""
+            val sampleCase = SampleCase(input = case.input, expectedOutput = expectedOutput)
             try {
                 val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
                 if (cancelRequested) break
@@ -450,7 +455,7 @@ class GeneralTestPanel(
             } catch (exception: Exception) {
                 if (cancelRequested) break
                 val message = exception.message ?: exception::class.simpleName.orEmpty()
-                val errorResult = createErrorResult(case.expectedOutput, message)
+                val errorResult = createErrorResult(expectedOutput, message)
                 judgedCount++
                 runOnEdt { findTestResultService()?.addResult(key, errorResult) }
             }
@@ -497,7 +502,7 @@ class GeneralTestPanel(
         val entry = testCaseEntries.find { it.testName == name } ?: return
         entry.setInput(input)
         entry.setExpectedOutput(expectedOutput)
-        repository.save(fileKey, name, GeneralTestCase(input = input, expectedOutput = expectedOutput))
+        repository.save(fileKey, name, TestCase(input = input, expectedOutput = expectedOutput))
     }
 
     private fun createErrorResult(expectedOutput: String, errorMessage: String): SampleRunResult {

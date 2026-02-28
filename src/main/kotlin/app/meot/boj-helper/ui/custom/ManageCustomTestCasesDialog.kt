@@ -1,7 +1,9 @@
 package com.boj.intellij.ui.custom
 
-import com.boj.intellij.custom.CustomTestCase
-import com.boj.intellij.custom.CustomTestCaseRepository
+import com.boj.intellij.common.TestCase
+import com.boj.intellij.common.TestCaseRepository
+import com.boj.intellij.ui.common.AddTestCaseDialog
+import com.boj.intellij.ui.common.TestCaseDialogConfig
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
@@ -18,14 +20,14 @@ import java.awt.FlowLayout
 
 class ManageCustomTestCasesDialog(
     private val project: Project?,
-    private val repository: CustomTestCaseRepository,
+    private val repository: TestCaseRepository,
     private val problemId: String,
     private val onChanged: () -> Unit,
 ) : DialogWrapper(project) {
 
     private val listModel = DefaultListModel<String>()
     private val caseList = JBList(listModel)
-    private var cases: MutableMap<String, CustomTestCase> = mutableMapOf()
+    private var cases: MutableMap<String, TestCase> = mutableMapOf()
 
     init {
         title = "커스텀 테스트 케이스 관리 — 문제 $problemId"
@@ -70,10 +72,10 @@ class ManageCustomTestCasesDialog(
 
     private fun onAdd() {
         val defaultName = repository.nextAutoName(problemId)
-        val dialog = AddCustomTestCaseDialog(project, defaultName)
+        val dialog = AddTestCaseDialog(project, TestCaseDialogConfig.CUSTOM, defaultName)
         if (dialog.showAndGet()) {
             val name = dialog.getCaseName().ifBlank { defaultName }
-            repository.save(problemId, name, dialog.getCustomTestCase())
+            repository.save(problemId, name, dialog.getTestCase())
             refreshList()
             onChanged()
         }
@@ -82,13 +84,13 @@ class ManageCustomTestCasesDialog(
     private fun onEdit() {
         val selectedName = caseList.selectedValue ?: return
         val existingCase = cases[selectedName] ?: return
-        val dialog = AddCustomTestCaseDialog(project, selectedName, existingCase)
+        val dialog = AddTestCaseDialog(project, TestCaseDialogConfig.CUSTOM, selectedName, existingCase)
         if (dialog.showAndGet()) {
             val newName = dialog.getCaseName().ifBlank { selectedName }
             if (newName != selectedName) {
                 repository.delete(problemId, selectedName)
             }
-            repository.save(problemId, newName, dialog.getCustomTestCase())
+            repository.save(problemId, newName, dialog.getTestCase())
             refreshList()
             onChanged()
         }
