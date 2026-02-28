@@ -194,7 +194,7 @@ class BojToolWindowPanel(
 
     private fun isActiveTab(): Boolean {
         return runCatching {
-            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("BOJ") ?: return false
+            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("BOJ Helper") ?: return false
             toolWindow.contentManager.selectedContent?.component === this
         }.getOrDefault(false)
     }

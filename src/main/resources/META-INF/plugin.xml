@@ -51,7 +51,7 @@
                 id="com.boj.intellij.settings.BojSettingsConfigurable"
                 displayName="BOJ"/>
         <toolWindow
-                id="BOJ"
+                id="BOJ Helper"
                 anchor="right"
                 factoryClass="com.boj.intellij.ui.BojToolWindowFactory"
                 canCloseContents="false"
