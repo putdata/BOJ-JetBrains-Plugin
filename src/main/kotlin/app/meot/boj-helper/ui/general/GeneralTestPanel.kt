@@ -470,40 +470,46 @@ class GeneralTestPanel(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, resolveEntryBorderColor()),
                 BorderFactory.createEmptyBorder(6, 0, 6, 0),
             )
+            maximumSize = Dimension(Int.MAX_VALUE, MAX_ENTRY_HEIGHT)
 
             val contentPanel = JPanel(GridBagLayout())
             val c = GridBagConstraints()
 
-            // Header row: name + run + delete
+            // Header row: name + run + delete (spans 2 columns)
             c.gridx = 0; c.gridy = 0
+            c.gridwidth = 2
             c.weightx = 1.0; c.weighty = 0.0
             c.fill = GridBagConstraints.HORIZONTAL
             c.insets = Insets(0, 0, 4, 0)
             contentPanel.add(buildHeader(), c)
 
-            // Input label
-            c.gridy = 1; c.insets = Insets(0, 0, 2, 0)
+            // Left column: 입력
+            c.gridwidth = 1
+            c.gridx = 0; c.gridy = 1
+            c.weightx = 0.5; c.weighty = 0.0
+            c.fill = GridBagConstraints.HORIZONTAL
+            c.insets = Insets(0, 0, 2, 4)
             contentPanel.add(createFieldLabel("입력"), c)
 
-            // Input text area
             c.gridy = 2; c.weighty = 1.0; c.fill = GridBagConstraints.BOTH
-            c.insets = Insets(0, 0, 4, 0)
+            c.insets = Insets(0, 0, 0, 4)
             contentPanel.add(JBScrollPane(inputArea).apply {
-                preferredSize = Dimension(0, 60)
-                minimumSize = Dimension(0, 40)
+                preferredSize = Dimension(0, TEXTAREA_HEIGHT)
+                minimumSize = Dimension(0, TEXTAREA_MIN_HEIGHT)
             }, c)
 
-            // Expected output label
-            c.gridy = 3; c.weighty = 0.0; c.fill = GridBagConstraints.HORIZONTAL
-            c.insets = Insets(0, 0, 2, 0)
+            // Right column: 기대 출력
+            c.gridx = 1; c.gridy = 1
+            c.weightx = 0.5; c.weighty = 0.0
+            c.fill = GridBagConstraints.HORIZONTAL
+            c.insets = Insets(0, 4, 2, 0)
             contentPanel.add(createFieldLabel("기대 출력"), c)
 
-            // Expected output text area
-            c.gridy = 4; c.weighty = 1.0; c.fill = GridBagConstraints.BOTH
-            c.insets = Insets(0, 0, 0, 0)
+            c.gridy = 2; c.weighty = 1.0; c.fill = GridBagConstraints.BOTH
+            c.insets = Insets(0, 4, 0, 0)
             contentPanel.add(JBScrollPane(expectedOutputArea).apply {
-                preferredSize = Dimension(0, 60)
-                minimumSize = Dimension(0, 40)
+                preferredSize = Dimension(0, TEXTAREA_HEIGHT)
+                minimumSize = Dimension(0, TEXTAREA_MIN_HEIGHT)
             }, c)
 
             add(contentPanel, BorderLayout.CENTER)
@@ -552,6 +558,10 @@ class GeneralTestPanel(
         fun getExpectedOutput(): String = expectedOutputArea.text
 
         companion object {
+            private const val MAX_ENTRY_HEIGHT = 200
+            private const val TEXTAREA_HEIGHT = 80
+            private const val TEXTAREA_MIN_HEIGHT = 40
+
             private fun resolveEntryBorderColor(): Color {
                 return runCatching { JBColor.border() }.getOrElse { Color(0xD0D7DE) }
             }
