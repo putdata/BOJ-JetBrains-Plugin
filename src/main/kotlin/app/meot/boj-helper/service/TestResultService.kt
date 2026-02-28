@@ -91,9 +91,21 @@ class TestResultService {
     fun getCustomKeys(): List<TestCaseKey.Custom> =
         caseInputs.keys.filterIsInstance<TestCaseKey.Custom>()
 
+    fun getGeneralKeys(): List<TestCaseKey.General> =
+        caseInputs.keys.filterIsInstance<TestCaseKey.General>()
+
     fun clearCustomCaseInfo() {
         val customKeys = caseInputs.keys.filterIsInstance<TestCaseKey.Custom>()
         for (key in customKeys) {
+            caseInputs.remove(key)
+            caseExpectedOutputs.remove(key)
+            keyedResults.remove(key)
+        }
+    }
+
+    fun clearGeneralCaseInfo() {
+        val generalKeys = caseInputs.keys.filterIsInstance<TestCaseKey.General>()
+        for (key in generalKeys) {
             caseInputs.remove(key)
             caseExpectedOutputs.remove(key)
             keyedResults.remove(key)
