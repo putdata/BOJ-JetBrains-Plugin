@@ -225,7 +225,7 @@ class GeneralTestPanel(
         // General 전용 콜백
         panel.onAddGeneral = { addNewTestCase() }
         panel.onDeleteGeneral = { name -> deleteTestCaseByName(name) }
-        panel.onEditGeneral = { name -> scrollToTestCase(name) }
+        panel.onEditGeneral = { name -> editTestCaseByName(name) }
         panel.onGeneralCaseEdited = { name, input, expectedOutput ->
             updateTestCaseFromPanel(name, input, expectedOutput)
         }
@@ -286,11 +286,34 @@ class GeneralTestPanel(
     private fun addNewTestCase() {
         val fileKey = currentFileKey ?: return
         if (resolveCurrentFileRunCommand() == null) return
+        val defaultName = repository.nextAutoName(fileKey)
+        val dialog = AddGeneralTestCaseDialog(project, defaultName)
+        if (!dialog.showAndGet()) return
+        val name = dialog.getCaseName().ifBlank { defaultName }
+        val case = dialog.getGeneralTestCase()
+        repository.save(fileKey, name, case)
         updateEmptyState(false)
-        val name = repository.nextAutoName(fileKey)
-        addTestCaseEntry(name, "", "")
+        addTestCaseEntry(name, case.input, case.expectedOutput)
         testCaseListPanel.revalidate()
         testCaseListPanel.repaint()
+        syncTestResultPanel()
+    }
+
+    private fun editTestCase(entry: TestCaseEntryPanel) {
+        val fileKey = currentFileKey ?: return
+        val existingCase = GeneralTestCase(
+            input = entry.getInput(),
+            expectedOutput = entry.getExpectedOutput(),
+        )
+        val dialog = AddGeneralTestCaseDialog(project, entry.testName, existingCase)
+        if (!dialog.showAndGet()) return
+        val newName = dialog.getCaseName().ifBlank { entry.testName }
+        val newCase = dialog.getGeneralTestCase()
+        if (newName != entry.testName) {
+            repository.delete(fileKey, entry.testName)
+        }
+        repository.save(fileKey, newName, newCase)
+        loadTestCases()
         syncTestResultPanel()
     }
 
@@ -300,6 +323,7 @@ class GeneralTestPanel(
             input = input,
             expectedOutput = expectedOutput,
             onRun = { entryPanel -> runSingleTestCase(entryPanel) },
+            onEdit = { entryPanel -> editTestCase(entryPanel) },
             onDelete = { entryPanel -> deleteTestCase(entryPanel) },
         )
         testCaseEntries.add(entry)
@@ -463,10 +487,9 @@ class GeneralTestPanel(
         deleteTestCase(entry)
     }
 
-    private fun scrollToTestCase(name: String) {
+    private fun editTestCaseByName(name: String) {
         val entry = testCaseEntries.find { it.testName == name } ?: return
-        entry.scrollRectToVisible(entry.bounds)
-        entry.requestFocusInWindow()
+        editTestCase(entry)
     }
 
     private fun updateTestCaseFromPanel(name: String, input: String, expectedOutput: String) {
@@ -575,16 +598,19 @@ class GeneralTestPanel(
         input: String,
         expectedOutput: String,
         private val onRun: (TestCaseEntryPanel) -> Unit,
+        private val onEdit: (TestCaseEntryPanel) -> Unit,
         private val onDelete: (TestCaseEntryPanel) -> Unit,
     ) : JPanel(BorderLayout()) {
 
         private val inputArea = JBTextArea(input, 3, 0).apply {
             font = Font(Font.MONOSPACED, Font.PLAIN, 12)
             lineWrap = true
+            isEditable = false
         }
         private val expectedOutputArea = JBTextArea(expectedOutput, 3, 0).apply {
             font = Font(Font.MONOSPACED, Font.PLAIN, 12)
             lineWrap = true
+            isEditable = false
         }
 
         init {
@@ -655,6 +681,15 @@ class GeneralTestPanel(
             runButton.preferredSize = Dimension(24, 24)
             runButton.addActionListener { onRun(this@TestCaseEntryPanel) }
             buttonsPanel.add(runButton)
+
+            val editButton = JButton(AllIcons.Actions.Edit)
+            editButton.toolTipText = "편집"
+            editButton.isBorderPainted = false
+            editButton.isContentAreaFilled = false
+            editButton.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            editButton.preferredSize = Dimension(24, 24)
+            editButton.addActionListener { onEdit(this@TestCaseEntryPanel) }
+            buttonsPanel.add(editButton)
 
             val deleteButton = JButton(AllIcons.Actions.Close)
             deleteButton.toolTipText = "삭제"
