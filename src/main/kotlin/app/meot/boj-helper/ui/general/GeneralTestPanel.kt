@@ -23,6 +23,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
@@ -287,11 +288,19 @@ class GeneralTestPanel(
 
     private fun deleteTestCase(entry: TestCaseEntryPanel) {
         val fileKey = currentFileKey ?: return
+        val result = Messages.showYesNoDialog(
+            project,
+            "테스트 '${entry.testName}'을(를) 삭제하시겠습니까?",
+            "테스트 삭제",
+            Messages.getQuestionIcon(),
+        )
+        if (result != Messages.YES) return
         repository.delete(fileKey, entry.testName)
         testCaseEntries.remove(entry)
         testCaseListPanel.remove(entry)
         testCaseListPanel.revalidate()
         testCaseListPanel.repaint()
+        syncTestResultPanel()
     }
 
     fun saveAllTestCases() {
