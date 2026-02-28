@@ -15,6 +15,7 @@ import com.boj.intellij.ui.PythonInterpreterResolver
 import com.boj.intellij.ui.RunBarPanel
 import com.boj.intellij.ui.RunConfigurationCommandResolver
 import com.boj.intellij.ui.testresult.BojTestResultPanel
+import com.boj.intellij.ui.testresult.PanelMode
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -186,6 +187,8 @@ class GeneralTestPanel(
         val testService = findTestResultService() ?: return
         val panel = findTestResultPanel() ?: return
 
+        panel.setMode(PanelMode.GENERAL)
+
         testService.clearResults()
         testService.clearSampleInfo()
 
@@ -194,18 +197,17 @@ class GeneralTestPanel(
 
         if (cases.isEmpty()) {
             panel.populateEntries(0, emptyList(), emptyList())
-            return
+        } else {
+            testService.clearGeneralCaseInfo()
+            for ((name, case) in cases) {
+                val key = TestCaseKey.General(name)
+                testService.setCaseInfo(key, case.input, case.expectedOutput)
+            }
+            val generalKeys = cases.keys.map { TestCaseKey.General(it) }
+            panel.populateEntries(0, emptyList(), generalKeys)
         }
 
-        testService.clearGeneralCaseInfo()
-        for ((name, case) in cases) {
-            val key = TestCaseKey.General(name)
-            testService.setCaseInfo(key, case.input, case.expectedOutput)
-        }
-
-        val generalKeys = cases.keys.map { TestCaseKey.General(it) }
-        panel.populateEntries(0, emptyList(), generalKeys)
-
+        // 실행 콜백
         panel.onRunSingle = { key ->
             val command = runBarPanel.getSelectedCommand() ?: resolveCurrentFileRunCommand()
             if (command != null) {
@@ -219,6 +221,16 @@ class GeneralTestPanel(
             }
         }
         panel.onStop = { handleStop() }
+
+        // General 전용 콜백
+        panel.onAddGeneral = { addNewTestCase() }
+        panel.onDeleteGeneral = { name -> deleteTestCaseByName(name) }
+        panel.onEditGeneral = { name -> scrollToTestCase(name) }
+        panel.onGeneralCaseEdited = { name, input, expectedOutput ->
+            updateTestCaseFromPanel(name, input, expectedOutput)
+        }
+
+        // Custom 콜백 비활성화
         panel.onAddCustom = {}
         panel.onManageCustom = {}
         panel.onEditCustom = {}
@@ -446,6 +458,27 @@ class GeneralTestPanel(
         emptyStateLabel.isVisible = isEmpty
     }
 
+    private fun deleteTestCaseByName(name: String) {
+        val entry = testCaseEntries.find { it.testName == name } ?: return
+        deleteTestCase(entry)
+    }
+
+    private fun scrollToTestCase(name: String) {
+        val entry = testCaseEntries.find { it.testName == name } ?: return
+        entry.scrollRectToVisible(entry.bounds)
+        entry.requestFocusInWindow()
+    }
+
+    private fun updateTestCaseFromPanel(name: String, input: String, expectedOutput: String) {
+        val fileKey = currentFileKey ?: return
+        val entry = testCaseEntries.find { it.testName == name }
+        if (entry != null) {
+            entry.setInput(input)
+            entry.setExpectedOutput(expectedOutput)
+        }
+        repository.save(fileKey, name, GeneralTestCase(input = input, expectedOutput = expectedOutput))
+    }
+
     private fun createErrorResult(expectedOutput: String, errorMessage: String): SampleRunResult {
         return SampleRunResult(
             passed = false,
@@ -645,6 +678,8 @@ class GeneralTestPanel(
 
         fun getInput(): String = inputArea.text
         fun getExpectedOutput(): String = expectedOutputArea.text
+        fun setInput(text: String) { inputArea.text = text }
+        fun setExpectedOutput(text: String) { expectedOutputArea.text = text }
 
         companion object {
             private const val MAX_ENTRY_HEIGHT = 200
