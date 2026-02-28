@@ -549,6 +549,29 @@ class BojToolWindowPanel(
         }.getOrNull()
     }
 
+    fun onTabSelected() {
+        val testService = findTestResultService() ?: return
+        val panel = findTestResultPanel() ?: return
+
+        testService.clearResults()
+        testService.clearSampleInfo()
+
+        val problem = currentParsedProblem
+        if (problem != null) {
+            problem.samplePairs.forEachIndexed { index, pair ->
+                testService.setSampleInfo(index, pair.input, pair.output)
+            }
+            syncCustomCasesToTestResultService()
+            wireTestResultPanelCallbacks()
+
+            val customKeys = customTestCaseRepository.load(currentProblemNumber ?: "")
+                .keys.map { TestCaseKey.Custom(it) }
+            panel.populateEntries(problem.samplePairs.size, customKeys)
+        } else {
+            panel.populateEntries(0, emptyList())
+        }
+    }
+
     private fun wireTestResultPanelCallbacks() {
         val panel = findTestResultPanel() ?: return
         panel.onAddCustom = { showAddCustomTestCaseDialog() }
