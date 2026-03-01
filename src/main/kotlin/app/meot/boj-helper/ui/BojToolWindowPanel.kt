@@ -742,7 +742,7 @@ class BojToolWindowPanel(
                 "kt" -> "kotlin ${inferJvmMainClassName(normalizedPath, "${stem}Kt")}"
                 "py" -> {
                     val interpreter = pythonInterpreter ?: PythonInterpreterResolver.defaultCommand()
-                    "${quoteForShell(interpreter)} ${quoteForShell(file.path)}"
+                    "$interpreter ${quoteForShell(file.path)}"
                 }
                 "js" -> "node ${quoteForShell(file.path)}"
                 "ts" -> "ts-node ${quoteForShell(file.path)}"
