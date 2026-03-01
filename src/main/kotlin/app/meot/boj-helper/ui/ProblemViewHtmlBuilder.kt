@@ -176,7 +176,11 @@ object ProblemViewHtmlBuilder {
         rawHtml
             .replace(SCRIPT_TAG_REGEX, "")
             .replace(STYLE_TAG_REGEX, "")
+            .replace(TABLE_OPEN_REGEX, """<div class="table-wrapper"><table""")
+            .replace("</table>", "</table></div>")
             .trim()
+
+    private val TABLE_OPEN_REGEX = Regex("(?i)<table(?=[\\s>])")
 
     private fun escapeHtml(value: String): String =
         value
