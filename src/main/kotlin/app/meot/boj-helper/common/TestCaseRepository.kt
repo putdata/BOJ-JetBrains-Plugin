@@ -14,7 +14,7 @@ data class TestCaseRepositoryConfig(
             nullableOutput = true,
         )
         val GENERAL = TestCaseRepositoryConfig(
-            baseDirName = "general-cases",
+            baseDirName = "general",
             autoNamePrefix = "",
             nullableOutput = false,
         )

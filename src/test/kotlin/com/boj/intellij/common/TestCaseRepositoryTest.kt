@@ -98,7 +98,7 @@ class TestCaseRepositoryTest {
         val repo = TestCaseRepository(baseDir, TestCaseRepositoryConfig.GENERAL)
 
         // .in 파일만 직접 생성 (.out 없이)
-        val dir = File(baseDir, "general-cases/main.py")
+        val dir = File(baseDir, "general/main.py")
         dir.mkdirs()
         File(dir, "1.in").writeText("hello")
 
