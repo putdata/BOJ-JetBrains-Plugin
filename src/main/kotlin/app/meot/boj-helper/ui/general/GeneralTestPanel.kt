@@ -194,6 +194,7 @@ class GeneralTestPanel(
 
         testService.clearResults()
         testService.clearSampleInfo()
+        runBarPanel.updateStatus("실행 대기 중")
 
         val fileKey = currentFileKey
         val cases = if (fileKey != null) repository.load(fileKey) else emptyMap()

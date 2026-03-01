@@ -572,6 +572,7 @@ class BojToolWindowPanel(
 
         testService.clearResults()
         testService.clearSampleInfo()
+        runBarPanel.updateStatus("실행 대기 중")
 
         val problem = currentParsedProblem
         if (problem != null) {
