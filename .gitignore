@@ -22,3 +22,6 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+
+# Docs
+docs/plans/
