@@ -124,9 +124,13 @@ class GeneralTestPanel(
         scrollPane.border = BorderFactory.createEmptyBorder()
         centerPanel.add(scrollPane, BorderLayout.CENTER)
 
-        val addButton = JButton("+ 테스트 추가")
+        val addButton = JButton("테스트 추가", AllIcons.General.Add)
+        addButton.isBorderPainted = false
+        addButton.isContentAreaFilled = false
+        addButton.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        addButton.margin = Insets(2, 4, 2, 4)
         addButton.addActionListener { addNewTestCase() }
-        val addPanel = JPanel(FlowLayout(FlowLayout.CENTER))
+        val addPanel = JPanel(FlowLayout(FlowLayout.CENTER, 0, 2))
         addPanel.add(addButton)
         centerPanel.add(addPanel, BorderLayout.SOUTH)
 
