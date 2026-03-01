@@ -118,7 +118,7 @@ class BojWorkflowIntegrationTest {
         assertEquals("kotlin com.boj.SolverKt", kotlinCommand)
 
         val pythonCommand = BojToolWindowPanel.inferCommandFromFilePath("/workspace/solutions/my script.py")
-        assertEquals("python3 \"/workspace/solutions/my script.py\"", pythonCommand)
+        assertEquals("\"python3\" \"/workspace/solutions/my script.py\"", pythonCommand)
 
         val unknownCommand = BojToolWindowPanel.inferCommandFromFilePath("/workspace/notes/problem.txt")
         assertNull(unknownCommand)
