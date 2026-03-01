@@ -4,6 +4,9 @@
   background: var(--sample-bg);
   border-radius: 6px;
 }
+section + .sample-group {
+  margin-top: 32px;
+}
 .sample-header {
   display: flex;
   align-items: center;
