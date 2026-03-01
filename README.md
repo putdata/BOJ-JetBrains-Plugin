@@ -4,8 +4,8 @@ View and test Baekjoon Online Judge problems directly in your JetBrains IDE.
 
 > 백준 온라인 저지 문제를 JetBrains IDE에서 바로 보고 테스트하세요.
 
-<!-- 메인 스크린샷 -->
-![BOJ Helper 메인 화면](docs/screenshots/main.png)
+<!-- 백준 탭 스크린샷 -->
+![BOJ Helper 백준 탭](docs/screenshots/boj_tab.png)
 
 ## 주요 기능
 
@@ -21,6 +21,13 @@ LaTeX 수식을 포함한 문제를 MathJax로 렌더링합니다. JCEF를 지�
 - **Pass** — 출력이 예상 결과와 일치
 - **Fail** — 출력 불일치, 런타임 에러, 또는 시간 초과
 - 출력 비교 시 후행 공백과 빈 줄은 무시합니다
+
+![BOJ 테스트 결과](docs/screenshots/test_result.png)
+
+### 일반 테스트
+백준 문제가 아닌 일반 코드 파일에서도 입출력 테스트를 실행할 수 있습니다. BOJ Helper 도구 창의 일반 탭에서 테스트 케이스를 추가하고 실행합니다.
+
+![일반 탭](docs/screenshots/general_tab.png)
 
 ### 커스텀 테스트 케이스
 샘플 외에 직접 테스트 케이스를 추가하고 관리할 수 있습니다.
@@ -53,7 +60,7 @@ LaTeX 수식을 포함한 문제를 MathJax로 렌더링합니다. JCEF를 지�
 ## 사용법
 
 1. 파일명에 문제 번호를 포함하여 파일을 생성합니다 (예: `Boj1000.java`)
-2. 우측 **BOJ** 도구 창에서 문제가 자동으로 로딩됩니다
+2. 우측 **BOJ Helper** 도구 창에서 문제가 자동으로 로딩됩니다
 3. 코드를 작성한 후 **실행** 버튼을 클릭합니다
 4. 하단 **BOJ 테스트** 도구 창에서 결과를 확인합니다
 
