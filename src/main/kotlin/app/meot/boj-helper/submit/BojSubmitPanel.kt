@@ -29,7 +29,6 @@ class BojSubmitPanel(
     private val loginButton = JButton("로그인")
     private val logoutButton = JButton("로그아웃").apply { isVisible = false }
     private val submitButton = JButton("제출").apply { isEnabled = false }
-    private val backButton = JButton("문제로 돌아가기").apply { isVisible = false }
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
@@ -65,7 +64,6 @@ class BojSubmitPanel(
         panel.add(statusPanel, BorderLayout.WEST)
 
         val actionPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
-        actionPanel.add(backButton)
         actionPanel.add(submitButton)
         panel.add(actionPanel, BorderLayout.EAST)
 
@@ -92,7 +90,6 @@ class BojSubmitPanel(
         loginButton.addActionListener { navigateToLogin() }
         logoutButton.addActionListener { handleLogout() }
         submitButton.addActionListener { navigateToSubmit() }
-        backButton.addActionListener { navigateToLogin() }
     }
 
     private fun wireLoadHandler() {
@@ -109,20 +106,12 @@ class BojSubmitPanel(
 
     private fun handleUrlChanged(url: String) {
         when {
-            // 로그인 페이지에 있으면 미로그인 상태
             url.contains("/login") -> {
                 updateLoginState(false, null)
             }
-            // 제출 완료 후 status 페이지로 이동
-            url.contains("/status") -> {
-                backButton.isVisible = true
-            }
-            // 제출 페이지
             url.contains("/submit/") -> {
-                backButton.isVisible = true
                 injectSubmitFormData()
             }
-            // 그 외 (로그인 성공 후 메인 페이지 등)
             url.startsWith(BOJ_BASE_URL) && !url.contains("/login") -> {
                 extractUsername()
             }
@@ -189,7 +178,6 @@ class BojSubmitPanel(
     }
 
     private fun navigateToLogin() {
-        backButton.isVisible = false
         browser?.loadURL(BOJ_LOGIN_URL)
     }
 
@@ -211,7 +199,6 @@ class BojSubmitPanel(
             navigateToLogin()
             return
         }
-        backButton.isVisible = true
         browser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
     }
 
