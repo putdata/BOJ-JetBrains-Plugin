@@ -29,6 +29,7 @@ class BojSubmitPanel(
     private val loginButton = JButton("로그인")
     private val logoutButton = JButton("로그아웃").apply { isVisible = false }
     private val submitButton = JButton("제출").apply { isEnabled = false }
+    private val updateCodeButton = JButton("소스코드 업데이트").apply { isEnabled = false }
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
@@ -64,6 +65,7 @@ class BojSubmitPanel(
         panel.add(statusPanel, BorderLayout.WEST)
 
         val actionPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
+        actionPanel.add(updateCodeButton)
         actionPanel.add(submitButton)
         panel.add(actionPanel, BorderLayout.EAST)
 
@@ -90,6 +92,7 @@ class BojSubmitPanel(
         loginButton.addActionListener { navigateToLogin() }
         logoutButton.addActionListener { handleLogout() }
         submitButton.addActionListener { navigateToSubmit() }
+        updateCodeButton.addActionListener { injectSubmitFormData() }
     }
 
     private fun wireLoadHandler() {
@@ -108,11 +111,14 @@ class BojSubmitPanel(
         when {
             url.contains("/login") -> {
                 updateLoginState(false, null)
+                updateCodeButton.isEnabled = false
             }
             url.contains("/submit/") -> {
+                updateCodeButton.isEnabled = true
                 injectSubmitFormData()
             }
             url.startsWith(BOJ_BASE_URL) && !url.contains("/login") -> {
+                updateCodeButton.isEnabled = false
                 extractUsername()
             }
         }
@@ -281,7 +287,9 @@ class BojSubmitPanel(
 
     fun onTabSelected() {
         submitButton.isEnabled = isLoggedIn && findCurrentProblemNumber() != null
-        if (browser != null && (browser.cefBrowser.url.isNullOrBlank() || browser.cefBrowser.url == "about:blank")) {
+        val currentUrl = browser?.cefBrowser?.url
+        updateCodeButton.isEnabled = currentUrl?.contains("/submit/") == true
+        if (browser != null && (currentUrl.isNullOrBlank() || currentUrl == "about:blank")) {
             navigateToLogin()
         }
     }
