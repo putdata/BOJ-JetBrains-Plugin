@@ -286,10 +286,21 @@ class BojSubmitPanel(
     }
 
     fun onTabSelected() {
-        submitButton.isEnabled = isLoggedIn && findCurrentProblemNumber() != null
-        val currentUrl = browser?.cefBrowser?.url
+        val problemNumber = findCurrentProblemNumber()
+        submitButton.isEnabled = isLoggedIn && problemNumber != null
+
+        if (browser == null) return
+
+        val currentUrl = browser.cefBrowser.url
         updateCodeButton.isEnabled = currentUrl?.contains("/submit/") == true
-        if (browser != null && (currentUrl.isNullOrBlank() || currentUrl == "about:blank")) {
+
+        if (isLoggedIn && problemNumber != null) {
+            val targetSubmitPath = "/submit/$problemNumber"
+            // 이미 해당 문제의 제출 페이지면 재이동하지 않음
+            if (currentUrl == null || !currentUrl.contains(targetSubmitPath)) {
+                browser.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+            }
+        } else if (currentUrl.isNullOrBlank() || currentUrl == "about:blank") {
             navigateToLogin()
         }
     }
