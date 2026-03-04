@@ -28,7 +28,7 @@ class BojSubmitPanel(
     private val loginStatusLabel = JLabel("미로그인")
     private val loginButton = JButton("로그인")
     private val logoutButton = JButton("로그아웃").apply { isVisible = false }
-    private val submitButton = JButton("제출").apply { isEnabled = false }
+    private val submitButton = JButton("제출 페이지").apply { isEnabled = false }
     private val updateCodeButton = JButton("소스코드 업데이트").apply { isEnabled = false }
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
@@ -179,7 +179,7 @@ class BojSubmitPanel(
             loginStatusLabel.text = "미로그인"
             loginButton.isVisible = true
             logoutButton.isVisible = false
-            submitButton.isEnabled = false
+            submitButton.isEnabled = findCurrentProblemNumber() != null
         }
     }
 
@@ -199,10 +199,6 @@ class BojSubmitPanel(
         val problemNumber = findCurrentProblemNumber()
         if (problemNumber == null) {
             loginStatusLabel.text = "먼저 백준 탭에서 문제를 불러오세요."
-            return
-        }
-        if (!isLoggedIn) {
-            navigateToLogin()
             return
         }
         browser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
@@ -287,14 +283,14 @@ class BojSubmitPanel(
 
     fun onTabSelected() {
         val problemNumber = findCurrentProblemNumber()
-        submitButton.isEnabled = isLoggedIn && problemNumber != null
+        submitButton.isEnabled = problemNumber != null
 
         if (browser == null) return
 
         val currentUrl = browser.cefBrowser.url
         updateCodeButton.isEnabled = currentUrl?.contains("/submit/") == true
 
-        if (isLoggedIn && problemNumber != null) {
+        if (problemNumber != null) {
             val targetSubmitPath = "/submit/$problemNumber"
             // 이미 해당 문제의 제출 페이지면 재이동하지 않음
             if (currentUrl == null || !currentUrl.contains(targetSubmitPath)) {
