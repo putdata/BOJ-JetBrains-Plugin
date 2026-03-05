@@ -15,6 +15,7 @@ import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
+import org.cef.handler.CefLifeSpanHandlerAdapter
 import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
 import java.awt.FlowLayout
@@ -37,6 +38,8 @@ class BojSubmitPanel(
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
     private var username: String? = null
+    private var browserReady = false
+    private var pendingUrl: String? = null
 
     companion object {
         private const val BOJ_BASE_URL = "https://www.acmicpc.net"
@@ -52,6 +55,7 @@ class BojSubmitPanel(
             add(browser.component, BorderLayout.CENTER)
             wireEvents()
             wireLoadHandler()
+            wireLifeSpanHandler()
             wireCurrentFileTracking()
         } else {
             add(buildJcefNotSupportedPanel(), BorderLayout.CENTER)
@@ -131,11 +135,34 @@ class BojSubmitPanel(
                         val targetSubmitPath = "/submit/$problemNumber"
                         submitButton.isEnabled = true
                         if (currentUrl == null || !currentUrl.contains(targetSubmitPath)) {
-                            browser?.cefBrowser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+                            loadUrlSafe("$BOJ_SUBMIT_URL/$problemNumber")
                         }
                     }
                 },
             )
+        }
+    }
+
+    private fun wireLifeSpanHandler() {
+        browser?.jbCefClient?.addLifeSpanHandler(object : CefLifeSpanHandlerAdapter() {
+            override fun onAfterCreated(cefBrowser: CefBrowser) {
+                ApplicationManager.getApplication().invokeLater {
+                    browserReady = true
+                    pendingUrl?.let { url ->
+                        browser.cefBrowser.loadURL(url)
+                        pendingUrl = null
+                    }
+                }
+            }
+        }, browser.cefBrowser)
+    }
+
+    private fun loadUrlSafe(url: String) {
+        if (browser == null) return
+        if (browserReady) {
+            browser.cefBrowser.loadURL(url)
+        } else {
+            pendingUrl = url
         }
     }
 
@@ -229,7 +256,7 @@ class BojSubmitPanel(
     }
 
     private fun navigateToLogin() {
-        browser?.cefBrowser?.loadURL(BOJ_LOGIN_URL)
+        loadUrlSafe(BOJ_LOGIN_URL)
     }
 
     private fun handleLogout() {
@@ -246,9 +273,7 @@ class BojSubmitPanel(
             loginStatusLabel.text = "먼저 백준 탭에서 문제를 불러오세요."
             return
         }
-        // JBCefBrowser.loadURL()은 사용자 내부 네비게이션 후 동작하지 않으므로
-        // CefBrowser.loadURL()을 직접 호출
-        browser?.cefBrowser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+        loadUrlSafe("$BOJ_SUBMIT_URL/$problemNumber")
     }
 
     private fun injectSubmitFormData(): Boolean {
@@ -372,7 +397,7 @@ class BojSubmitPanel(
             val targetSubmitPath = "/submit/$problemNumber"
             // 이미 해당 문제의 제출 페이지면 재이동하지 않음
             if (currentUrl == null || !currentUrl.contains(targetSubmitPath)) {
-                browser.cefBrowser.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+                loadUrlSafe("$BOJ_SUBMIT_URL/$problemNumber")
             }
         } else if (currentUrl.isNullOrBlank() || currentUrl == "about:blank") {
             navigateToLogin()
