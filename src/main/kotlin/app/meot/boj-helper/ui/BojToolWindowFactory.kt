@@ -18,15 +18,15 @@ class BojToolWindowFactory : ToolWindowFactory, DumbAware {
         bojContent.setDisposer(bojPanel)
         toolWindow.contentManager.addContent(bojContent)
 
-        val generalPanel = GeneralTestPanel(project)
-        val generalContent = contentFactory.createContent(generalPanel, "일반", false)
-        generalContent.setDisposer(generalPanel)
-        toolWindow.contentManager.addContent(generalContent)
-
         val submitPanel = BojSubmitPanel(project)
         val submitContent = contentFactory.createContent(submitPanel, "제출", false)
         submitContent.setDisposer(submitPanel)
         toolWindow.contentManager.addContent(submitContent)
+
+        val generalPanel = GeneralTestPanel(project)
+        val generalContent = contentFactory.createContent(generalPanel, "일반", false)
+        generalContent.setDisposer(generalPanel)
+        toolWindow.contentManager.addContent(generalContent)
 
         toolWindow.contentManager.addContentManagerListener(object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
