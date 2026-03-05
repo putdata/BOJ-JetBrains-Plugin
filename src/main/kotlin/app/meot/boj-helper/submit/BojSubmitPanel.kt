@@ -6,6 +6,8 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindowManager
@@ -50,6 +52,7 @@ class BojSubmitPanel(
             add(browser.component, BorderLayout.CENTER)
             wireEvents()
             wireLoadHandler()
+            wireCurrentFileTracking()
         } else {
             add(buildJcefNotSupportedPanel(), BorderLayout.CENTER)
         }
@@ -106,6 +109,34 @@ class BojSubmitPanel(
             }
         }
         languageSettingsButton.addActionListener { LanguageSettingsDialog(project).show() }
+    }
+
+    private fun isActiveTab(): Boolean {
+        return runCatching {
+            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("BOJ Helper") ?: return false
+            toolWindow.contentManager.selectedContent?.component === this
+        }.getOrDefault(false)
+    }
+
+    private fun wireCurrentFileTracking() {
+        runCatching {
+            project.messageBus.connect(project).subscribe(
+                FileEditorManagerListener.FILE_EDITOR_MANAGER,
+                object : FileEditorManagerListener {
+                    override fun selectionChanged(event: FileEditorManagerEvent) {
+                        if (!isActiveTab()) return
+                        val fileName = event.newFile?.name ?: return
+                        val problemNumber = BojToolWindowPanel.extractProblemNumberFromFileName(fileName) ?: return
+                        val currentUrl = browser?.cefBrowser?.url
+                        val targetSubmitPath = "/submit/$problemNumber"
+                        submitButton.isEnabled = true
+                        if (currentUrl == null || !currentUrl.contains(targetSubmitPath)) {
+                            browser?.cefBrowser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+                        }
+                    }
+                },
+            )
+        }
     }
 
     private fun wireLoadHandler() {
