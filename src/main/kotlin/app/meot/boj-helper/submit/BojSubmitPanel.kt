@@ -310,11 +310,16 @@ class BojSubmitPanel(
 
             // 2. 코드 에디터에 코드 삽입 (언어 변경 시에만 딜레이)
             append("""
+                var __bojScrollToSubmit = function() {
+                    var el = document.querySelector('.cf-turnstile');
+                    if (el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                };
                 var __bojInjectCode = function() {
                     // CodeMirror
                     var cmElement = document.querySelector('.CodeMirror');
                     if (cmElement && cmElement.CodeMirror) {
                         cmElement.CodeMirror.setValue(`$escapedCode`);
+                        __bojScrollToSubmit();
                         return;
                     }
                     // Ace Editor
@@ -322,6 +327,7 @@ class BojSubmitPanel(
                     if (aceElement && ace) {
                         var editor = ace.edit(aceElement);
                         editor.setValue(`$escapedCode`, -1);
+                        __bojScrollToSubmit();
                         return;
                     }
                     // textarea fallback
@@ -329,6 +335,7 @@ class BojSubmitPanel(
                     if (textarea) {
                         textarea.value = `$escapedCode`;
                     }
+                    __bojScrollToSubmit();
                 };
                 if (__bojLangChanged) {
                     setTimeout(__bojInjectCode, 500);
