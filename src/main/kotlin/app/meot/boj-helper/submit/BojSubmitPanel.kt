@@ -260,11 +260,15 @@ class BojSubmitPanel(
     }
 
     private fun handleLogout() {
-        // CEF 쿠키를 삭제하여 로그아웃
+        // CEF 쿠키를 삭제하여 로그아웃 (빈 URL로 모든 쿠키 삭제)
         org.cef.network.CefCookieManager.getGlobalManager()
-            ?.deleteCookies("https://www.acmicpc.net", "")
+            ?.deleteCookies("", "")
         updateLoginState(false, null)
-        navigateToLogin()
+        // deleteCookies는 비동기이므로 삭제 완료 후 페이지 이동
+        javax.swing.Timer(300) { navigateToLogin() }.apply {
+            isRepeats = false
+            start()
+        }
     }
 
     private fun navigateToSubmit() {
