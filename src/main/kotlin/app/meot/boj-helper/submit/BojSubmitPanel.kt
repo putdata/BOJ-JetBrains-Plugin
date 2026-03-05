@@ -94,7 +94,17 @@ class BojSubmitPanel(
         loginButton.addActionListener { navigateToLogin() }
         logoutButton.addActionListener { handleLogout() }
         submitButton.addActionListener { navigateToSubmit() }
-        updateCodeButton.addActionListener { injectSubmitFormData() }
+        updateCodeButton.addActionListener {
+            val updated = injectSubmitFormData()
+            if (updated) {
+                updateCodeButton.text = "업데이트 완료"
+                updateCodeButton.isEnabled = false
+                javax.swing.Timer(1500) {
+                    updateCodeButton.text = "소스코드 업데이트"
+                    updateCodeButton.isEnabled = true
+                }.apply { isRepeats = false; start() }
+            }
+        }
         languageSettingsButton.addActionListener { LanguageSettingsDialog(project).show() }
     }
 
@@ -210,10 +220,10 @@ class BojSubmitPanel(
         browser?.cefBrowser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
     }
 
-    private fun injectSubmitFormData() {
+    private fun injectSubmitFormData(): Boolean {
         val editor = runCatching {
             FileEditorManager.getInstance(project).selectedTextEditor
-        }.getOrNull() ?: return
+        }.getOrNull() ?: return false
 
         val document = editor.document
         val code = document.text
@@ -232,6 +242,8 @@ class BojSubmitPanel(
             .replace("\$", "\\\$")
 
         val js = buildString {
+            append("var __bojLangChanged = false;\n")
+
             // 1. 언어 선택 (ID 기반 - 숨긴 언어도 선택 가능)
             if (languageId != null) {
                 append("""
@@ -241,6 +253,7 @@ class BojSubmitPanel(
                         if (!select) return;
                         var targetId = '$languageId';
                         if (${'$'}(select).val() === targetId) return;
+                        __bojLangChanged = true;
                         var found = false;
                         for (var i = 0; i < select.options.length; i++) {
                             if (select.options[i].value === targetId) {
@@ -264,9 +277,9 @@ class BojSubmitPanel(
                 """.trimIndent())
             }
 
-            // 2. 코드 에디터에 코드 삽입 (CodeMirror 또는 Ace Editor)
+            // 2. 코드 에디터에 코드 삽입 (언어 변경 시에만 딜레이)
             append("""
-                setTimeout(function() {
+                var __bojInjectCode = function() {
                     // CodeMirror
                     var cmElement = document.querySelector('.CodeMirror');
                     if (cmElement && cmElement.CodeMirror) {
@@ -285,11 +298,17 @@ class BojSubmitPanel(
                     if (textarea) {
                         textarea.value = `$escapedCode`;
                     }
-                }, 500);
+                };
+                if (__bojLangChanged) {
+                    setTimeout(__bojInjectCode, 500);
+                } else {
+                    __bojInjectCode();
+                }
             """.trimIndent())
         }
 
         browser?.cefBrowser?.executeJavaScript(js, browser.cefBrowser.url, 0)
+        return true
     }
 
     private fun findCurrentProblemNumber(): String? {
