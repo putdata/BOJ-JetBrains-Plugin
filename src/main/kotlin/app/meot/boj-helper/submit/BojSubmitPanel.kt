@@ -115,6 +115,7 @@ class BojSubmitPanel(
             }
             url.contains("/submit/") -> {
                 updateCodeButton.isEnabled = true
+                extractUsername()
                 injectSubmitFormData()
             }
             url.startsWith(BOJ_BASE_URL) && !url.contains("/login") -> {
