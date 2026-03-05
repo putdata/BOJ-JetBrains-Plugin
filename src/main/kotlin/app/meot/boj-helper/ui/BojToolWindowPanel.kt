@@ -76,6 +76,7 @@ class BojToolWindowPanel(
         wrapStyleWord = true
     }
     private var currentProblemNumber: String? = null
+    fun getCurrentProblemNumber(): String? = currentProblemNumber
 
     // JS↔Kotlin 통신용 JBCefJSQuery
     private val jsCefQuery: JBCefJSQuery? = problemViewBrowser?.let { browser ->

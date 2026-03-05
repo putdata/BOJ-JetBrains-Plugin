@@ -1,5 +1,6 @@
 package com.boj.intellij.ui
 
+import com.boj.intellij.submit.BojSubmitPanel
 import com.boj.intellij.ui.general.GeneralTestPanel
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
@@ -17,6 +18,11 @@ class BojToolWindowFactory : ToolWindowFactory, DumbAware {
         bojContent.setDisposer(bojPanel)
         toolWindow.contentManager.addContent(bojContent)
 
+        val submitPanel = BojSubmitPanel(project)
+        val submitContent = contentFactory.createContent(submitPanel, "제출", false)
+        submitContent.setDisposer(submitPanel)
+        toolWindow.contentManager.addContent(submitContent)
+
         val generalPanel = GeneralTestPanel(project)
         val generalContent = contentFactory.createContent(generalPanel, "일반", false)
         generalContent.setDisposer(generalPanel)
@@ -28,6 +34,7 @@ class BojToolWindowFactory : ToolWindowFactory, DumbAware {
                     when (val component = event.content.component) {
                         is BojToolWindowPanel -> component.onTabSelected()
                         is GeneralTestPanel -> component.onTabSelected()
+                        is BojSubmitPanel -> component.onTabSelected()
                     }
                 }
             }

@@ -9,7 +9,7 @@ class RunConfigurationCommandResolverTest {
     @Test
     fun `resolveCommandFromFilePath returns python3 command for py files`() {
         val result = RunConfigurationCommandResolver.resolveCommandFromFilePath("/home/user/main.py")
-        assertEquals("python3 \"/home/user/main.py\"", result)
+        assertEquals("\"python3\" \"/home/user/main.py\"", result)
     }
 
     @Test
