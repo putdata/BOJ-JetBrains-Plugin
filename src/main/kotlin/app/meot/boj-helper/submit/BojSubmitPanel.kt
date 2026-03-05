@@ -30,6 +30,7 @@ class BojSubmitPanel(
     private val logoutButton = JButton("로그아웃").apply { isVisible = false }
     private val submitButton = JButton("제출 페이지").apply { isEnabled = false }
     private val updateCodeButton = JButton("소스코드 업데이트").apply { isEnabled = false }
+    private val languageSettingsButton = JButton("언어 설정")
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
@@ -67,6 +68,7 @@ class BojSubmitPanel(
         val actionPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
         actionPanel.add(updateCodeButton)
         actionPanel.add(submitButton)
+        actionPanel.add(languageSettingsButton)
         panel.add(actionPanel, BorderLayout.EAST)
 
         return panel
@@ -93,6 +95,7 @@ class BojSubmitPanel(
         logoutButton.addActionListener { handleLogout() }
         submitButton.addActionListener { navigateToSubmit() }
         updateCodeButton.addActionListener { injectSubmitFormData() }
+        languageSettingsButton.addActionListener { LanguageSettingsDialog(project).show() }
     }
 
     private fun wireLoadHandler() {
@@ -220,6 +223,7 @@ class BojSubmitPanel(
         // CopyForSubmitUtil로 변환 (Java의 경우 클래스명을 Main으로 변경)
         val transformedCode = CopyForSubmitUtil.transformForSubmit(code, extension)
         val languageName = extension?.let { LanguageMapper.toBojLanguageName(it) }
+        val languageId = extension?.let { LanguageMapper.toBojLanguageId(it) }
 
         // JavaScript 이스케이프
         val escapedCode = transformedCode
@@ -228,21 +232,35 @@ class BojSubmitPanel(
             .replace("\$", "\\\$")
 
         val js = buildString {
-            // 1. 언어 선택
-            if (languageName != null) {
+            // 1. 언어 선택 (ID 기반 - 숨긴 언어도 선택 가능)
+            if (languageId != null) {
                 append("""
-                    (function() {
+                    try { (function() {
+                        var ${'$'} = window.jQuery;
                         var select = document.getElementById('language');
                         if (!select) return;
-                        var options = select.options;
-                        for (var i = 0; i < options.length; i++) {
-                            if (options[i].text.indexOf('$languageName') !== -1) {
-                                select.value = options[i].value;
-                                select.dispatchEvent(new Event('change', { bubbles: true }));
+                        var targetId = '$languageId';
+                        if (${'$'}(select).val() === targetId) return;
+                        var found = false;
+                        for (var i = 0; i < select.options.length; i++) {
+                            if (select.options[i].value === targetId) {
+                                found = true;
                                 break;
                             }
                         }
-                    })();
+                        if (!found) {
+                            var opt = document.createElement('option');
+                            opt.value = targetId;
+                            opt.text = '${languageName ?: ""}';
+                            select.appendChild(opt);
+                        }
+                        if (${'$'}) {
+                            ${'$'}(select).val(targetId).trigger('chosen:updated').trigger('change');
+                        } else {
+                            select.value = targetId;
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    })(); } catch(e) {}
                 """.trimIndent())
             }
 
