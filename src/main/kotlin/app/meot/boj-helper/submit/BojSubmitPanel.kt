@@ -184,7 +184,7 @@ class BojSubmitPanel(
     }
 
     private fun navigateToLogin() {
-        browser?.loadURL(BOJ_LOGIN_URL)
+        browser?.cefBrowser?.loadURL(BOJ_LOGIN_URL)
     }
 
     private fun handleLogout() {
@@ -201,7 +201,9 @@ class BojSubmitPanel(
             loginStatusLabel.text = "먼저 백준 탭에서 문제를 불러오세요."
             return
         }
-        browser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+        // JBCefBrowser.loadURL()은 사용자 내부 네비게이션 후 동작하지 않으므로
+        // CefBrowser.loadURL()을 직접 호출
+        browser?.cefBrowser?.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
     }
 
     private fun injectSubmitFormData() {
@@ -294,7 +296,7 @@ class BojSubmitPanel(
             val targetSubmitPath = "/submit/$problemNumber"
             // 이미 해당 문제의 제출 페이지면 재이동하지 않음
             if (currentUrl == null || !currentUrl.contains(targetSubmitPath)) {
-                browser.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
+                browser.cefBrowser.loadURL("$BOJ_SUBMIT_URL/$problemNumber")
             }
         } else if (currentUrl.isNullOrBlank() || currentUrl == "about:blank") {
             navigateToLogin()
