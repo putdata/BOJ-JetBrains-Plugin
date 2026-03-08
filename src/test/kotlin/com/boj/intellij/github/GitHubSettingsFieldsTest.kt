@@ -17,4 +17,10 @@ class GitHubSettingsFieldsTest {
         assertEquals("[{problemId}] {title}", state.githubCommitTemplate)
         assertEquals(emptyList<String>(), state.uploadedSubmissionIds)
     }
+
+    @Test
+    fun `State has githubReadmeEnabled default false`() {
+        val state = BojSettings.State()
+        assertEquals(false, state.githubReadmeEnabled)
+    }
 }

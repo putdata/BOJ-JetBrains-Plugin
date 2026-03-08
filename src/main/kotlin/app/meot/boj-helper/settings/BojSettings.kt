@@ -19,6 +19,7 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var githubEnabled: Boolean = false,
         var githubPathTemplate: String = "{language}/{problemId}.{ext}",
         var githubCommitTemplate: String = "[{problemId}] {title}",
+        var githubReadmeEnabled: Boolean = false,
         var uploadedSubmissionIds: MutableList<String> = mutableListOf(),
     )
 
