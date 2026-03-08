@@ -13,6 +13,13 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var timeoutSeconds: Int = 10,
         var languageMappings: MutableMap<String, String> = mutableMapOf(),
         var defaultLanguage: String? = null,
+        // GitHub 설정
+        var githubRepo: String = "",
+        var githubBranch: String = "main",
+        var githubEnabled: Boolean = false,
+        var githubAutoUpload: Boolean = true,
+        var githubPathTemplate: String = "{language}/{problemId}.{ext}",
+        var githubCommitTemplate: String = "[{problemId}] {title}",
     )
 
     private var myState = State()
