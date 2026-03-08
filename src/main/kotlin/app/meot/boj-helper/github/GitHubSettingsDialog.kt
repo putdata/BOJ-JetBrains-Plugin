@@ -27,6 +27,7 @@ class GitHubSettingsDialog(
     private val commitPreviewLabel = JLabel(" ")
     private val testConnectionButton = JButton("연결 테스트")
     private val testResultLabel = JLabel(" ")
+    private val readmeCheckbox = JCheckBox("README.md 생성 (폴더 모드)")
 
     init {
         title = "GitHub 설정"
@@ -45,6 +46,8 @@ class GitHubSettingsDialog(
         branchField.text = settings.state.githubBranch
         pathTemplateField.text = settings.state.githubPathTemplate
         commitTemplateField.text = settings.state.githubCommitTemplate
+
+        readmeCheckbox.isSelected = settings.state.githubReadmeEnabled
 
         val existingToken = GitHubCredentialStore.getToken()
         if (!existingToken.isNullOrBlank()) {
@@ -132,9 +135,14 @@ class GitHubSettingsDialog(
         panel.add(commitPreviewLabel, gbc)
         row++
 
+        // README 체크박스
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL
+        panel.add(readmeCheckbox, gbc)
+        row++
+
         // 사용 가능한 변수 안내
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL
-        val helpLabel = JLabel("<html>사용 가능한 변수: {problemId}, {title}, {language}, {ext}, {memory}, {time}</html>")
+        val helpLabel = JLabel("<html>사용 가능한 변수: {problemId}, {title}, {language}, {ext}, {memory}, {time}, {tier}, {tierNum}<br>수정자: {변수:u} 대문자, {변수:l} 소문자, {변수:c} 첫글자 대문자</html>")
         helpLabel.foreground = java.awt.Color.GRAY
         panel.add(helpLabel, gbc)
         row++
@@ -164,6 +172,8 @@ class GitHubSettingsDialog(
             "ext" to "java",
             "memory" to "14512",
             "time" to "132",
+            "tier" to "Gold",
+            "tierNum" to "5",
         )
         pathPreviewLabel.text = "미리보기: ${TemplateEngine.render(pathTemplateField.text, sampleVars)}"
         commitPreviewLabel.text = "미리보기: ${TemplateEngine.render(commitTemplateField.text, sampleVars)}"
@@ -216,6 +226,7 @@ class GitHubSettingsDialog(
         settings.state.githubBranch = branchField.text.trim().ifBlank { "main" }
         settings.state.githubPathTemplate = pathTemplateField.text.trim().ifBlank { "{language}/{problemId}.{ext}" }
         settings.state.githubCommitTemplate = commitTemplateField.text.trim().ifBlank { "[{problemId}] {title}" }
+        settings.state.githubReadmeEnabled = readmeCheckbox.isSelected
         val token = String(tokenField.password).trim()
         if (token.isNotBlank()) {
             GitHubCredentialStore.setToken(token)
