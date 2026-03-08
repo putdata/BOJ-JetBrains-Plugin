@@ -34,6 +34,8 @@ class BojSubmitPanel(
     private val submitButton = JButton("제출 페이지").apply { isEnabled = false }
     private val updateCodeButton = JButton("소스코드 업데이트").apply { isEnabled = false }
     private val languageSettingsButton = JButton("언어 설정")
+    private val githubButton = JButton("GitHub")
+    private var resultDetector: SubmitResultDetector? = null
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
@@ -57,6 +59,7 @@ class BojSubmitPanel(
             wireLoadHandler()
             wireLifeSpanHandler()
             wireCurrentFileTracking()
+            resultDetector = SubmitResultDetector(browser, this)
         } else {
             add(buildJcefNotSupportedPanel(), BorderLayout.CENTER)
         }
@@ -76,6 +79,7 @@ class BojSubmitPanel(
         actionPanel.add(updateCodeButton)
         actionPanel.add(submitButton)
         actionPanel.add(languageSettingsButton)
+        actionPanel.add(githubButton)
         panel.add(actionPanel, BorderLayout.EAST)
 
         return panel
@@ -113,6 +117,9 @@ class BojSubmitPanel(
             }
         }
         languageSettingsButton.addActionListener { LanguageSettingsDialog(project).show() }
+        githubButton.addActionListener {
+            com.boj.intellij.github.GitHubSettingsDialog(project).show()
+        }
     }
 
     private fun isActiveTab(): Boolean {
@@ -188,6 +195,11 @@ class BojSubmitPanel(
                 updateCodeButton.isEnabled = true
                 extractUsername()
                 injectSubmitFormData()
+            }
+            url.contains("/status") -> {
+                updateCodeButton.isEnabled = false
+                extractUsername()
+                startResultDetection()
             }
             url.startsWith(BOJ_BASE_URL) && !url.contains("/login") -> {
                 updateCodeButton.isEnabled = false
@@ -376,6 +388,56 @@ class BojSubmitPanel(
 
         browser?.cefBrowser?.executeJavaScript(js, browser.cefBrowser.url, 0)
         return true
+    }
+
+    private fun startResultDetection() {
+        val problemNumber = findCurrentProblemNumber() ?: return
+        resultDetector?.startDetection(problemNumber) { result ->
+            ApplicationManager.getApplication().invokeLater {
+                handleSubmitResult(result)
+            }
+        }
+    }
+
+    private fun handleSubmitResult(result: SubmitResult) {
+        if (!result.isAccepted()) return
+
+        val settings = com.boj.intellij.settings.BojSettings.getInstance()
+        if (!settings.state.githubEnabled) return
+
+        val editor = runCatching {
+            com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedTextEditor
+        }.getOrNull() ?: return
+        val document = editor.document
+        val sourceCode = document.text
+        val virtualFile = com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().getFile(document)
+        val extension = virtualFile?.extension ?: return
+
+        // 문제 제목 가져오기
+        val title = findProblemTitle() ?: "Problem ${result.problemId}"
+
+        // Java의 경우 클래스명을 Main으로 변환
+        val transformedCode = com.boj.intellij.ui.CopyForSubmitUtil.transformForSubmit(sourceCode, extension)
+
+        if (settings.state.githubAutoUpload) {
+            com.boj.intellij.github.GitHubUploadService.upload(project, result, transformedCode, title, extension)
+        } else {
+            // 확인 대화상자
+            val dialog = com.boj.intellij.github.UploadConfirmDialog(project, result, title)
+            if (dialog.showAndGet()) {
+                com.boj.intellij.github.GitHubUploadService.upload(project, result, transformedCode, title, extension)
+            }
+        }
+    }
+
+    private fun findProblemTitle(): String? {
+        return runCatching {
+            val toolWindow = com.intellij.openapi.wm.ToolWindowManager.getInstance(project)
+                .getToolWindow("BOJ Helper") ?: return null
+            val content = toolWindow.contentManager.getContent(0) ?: return null
+            val bojPanel = content.component as? com.boj.intellij.ui.BojToolWindowPanel ?: return null
+            bojPanel.getCurrentProblemTitle()
+        }.getOrNull()
     }
 
     private fun findCurrentProblemNumber(): String? {
