@@ -2,6 +2,7 @@ package com.boj.intellij.github
 
 import com.boj.intellij.settings.BojSettings
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import java.awt.BorderLayout
@@ -215,7 +216,7 @@ class GitHubSettingsDialog(
                 try {
                     val client = GitHubApiClient(token)
                     val result = client.testConnection(repo)
-                    ApplicationManager.getApplication().invokeLater {
+                    ApplicationManager.getApplication().invokeLater({
                         if (result.success) {
                             testResultLabel.text = if (result.canPush) "연결 성공 (push 권한 확인)" else "연결 성공"
                             testResultLabel.foreground = java.awt.Color(0x2E7D32)
@@ -224,13 +225,13 @@ class GitHubSettingsDialog(
                             testResultLabel.foreground = java.awt.Color.RED
                         }
                         testConnectionButton.isEnabled = true
-                    }
+                    }, ModalityState.any())
                 } catch (e: Exception) {
-                    ApplicationManager.getApplication().invokeLater {
+                    ApplicationManager.getApplication().invokeLater({
                         testResultLabel.text = "오류: ${e.message}"
                         testResultLabel.foreground = java.awt.Color.RED
                         testConnectionButton.isEnabled = true
-                    }
+                    }, ModalityState.any())
                 }
             }
         }
