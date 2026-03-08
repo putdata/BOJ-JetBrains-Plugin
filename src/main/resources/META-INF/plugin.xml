@@ -55,6 +55,7 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="BOJ Helper" displayType="BALLOON"/>
         <applicationService serviceImplementation="com.boj.intellij.settings.BojSettings"/>
         <applicationConfigurable
                 parentId="tools"
