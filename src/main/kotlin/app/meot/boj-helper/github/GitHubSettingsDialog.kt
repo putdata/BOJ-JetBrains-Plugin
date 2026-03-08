@@ -5,9 +5,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
-import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -25,8 +23,6 @@ class GitHubSettingsDialog(
     private val branchField = JTextField(30)
     private val pathTemplateField = JTextField(30)
     private val commitTemplateField = JTextField(30)
-    private val autoUploadRadio = JRadioButton("자동 업로드")
-    private val confirmUploadRadio = JRadioButton("확인 후 업로드")
     private val pathPreviewLabel = JLabel(" ")
     private val commitPreviewLabel = JLabel(" ")
     private val testConnectionButton = JButton("연결 테스트")
@@ -37,10 +33,6 @@ class GitHubSettingsDialog(
         loadCurrentSettings()
         setupPreviewListeners()
         setupTestConnectionButton()
-
-        val group = ButtonGroup()
-        group.add(autoUploadRadio)
-        group.add(confirmUploadRadio)
 
         init()
         updatePreviews()
@@ -53,8 +45,6 @@ class GitHubSettingsDialog(
         branchField.text = settings.state.githubBranch
         pathTemplateField.text = settings.state.githubPathTemplate
         commitTemplateField.text = settings.state.githubCommitTemplate
-
-        autoUploadRadio.isSelected = true
 
         val existingToken = GitHubCredentialStore.getToken()
         if (!existingToken.isNullOrBlank()) {
@@ -147,20 +137,6 @@ class GitHubSettingsDialog(
         val helpLabel = JLabel("<html>사용 가능한 변수: {problemId}, {title}, {language}, {ext}, {memory}, {time}</html>")
         helpLabel.foreground = java.awt.Color.GRAY
         panel.add(helpLabel, gbc)
-        row++
-
-        // 구분선
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL
-        panel.add(JSeparator(), gbc)
-        row++
-
-        // 업로드 방식
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL
-        val uploadPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
-        uploadPanel.add(JLabel("업로드 방식:"))
-        uploadPanel.add(autoUploadRadio)
-        uploadPanel.add(confirmUploadRadio)
-        panel.add(uploadPanel, gbc)
         row++
 
         // 빈 공간 채우기
