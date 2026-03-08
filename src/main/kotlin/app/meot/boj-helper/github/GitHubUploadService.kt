@@ -15,12 +15,16 @@ object GitHubUploadService {
         sourceCode: String,
         title: String,
         extension: String,
+        onSuccess: (() -> Unit)? = null,
+        onFailure: (() -> Unit)? = null,
     ) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 doUpload(project, submitResult, sourceCode, title, extension)
+                onSuccess?.invoke()
             } catch (e: Exception) {
                 notifyError(project, e.message ?: "알 수 없는 오류가 발생했습니다")
+                onFailure?.invoke()
             }
         }
     }
