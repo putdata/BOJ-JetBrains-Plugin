@@ -1,4 +1,3 @@
-// src/main/kotlin/app/meot/boj-helper/github/GitHubSettingsDialog.kt
 package com.boj.intellij.github
 
 import com.boj.intellij.settings.BojSettings
@@ -249,6 +248,8 @@ class GitHubSettingsDialog(
         val token = String(tokenField.password).trim()
         if (token.isNotBlank()) {
             GitHubCredentialStore.setToken(token)
+        } else {
+            GitHubCredentialStore.removeToken()
         }
 
         super.doOKAction()

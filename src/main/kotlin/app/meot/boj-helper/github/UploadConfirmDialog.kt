@@ -1,4 +1,3 @@
-// src/main/kotlin/app/meot/boj-helper/github/UploadConfirmDialog.kt
 package com.boj.intellij.github
 
 import com.boj.intellij.submit.SubmitResult
