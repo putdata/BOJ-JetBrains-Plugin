@@ -467,6 +467,9 @@ class BojSubmitPanel(
         val problemId = extractJsonValue(jsonString, "problemId") ?: return
         val sourceCode = extractJsonValue(jsonString, "sourceCode") ?: return
         val language = extractJsonValue(jsonString, "language") ?: return
+        val memory = extractJsonValue(jsonString, "memory") ?: ""
+        val time = extractJsonValue(jsonString, "time") ?: ""
+        val codeLength = extractJsonValue(jsonString, "codeLength") ?: ""
         val tierLevel = extractJsonInt(jsonString, "tierLevel") ?: 0
         val submittedAt = extractJsonValue(jsonString, "submittedAt") ?: ""
 
@@ -484,10 +487,10 @@ class BojSubmitPanel(
                 submissionId = submissionId,
                 problemId = problemId,
                 result = "맞았습니다!!",
-                memory = "",
-                time = "",
+                memory = memory,
+                time = time,
                 language = language,
-                codeLength = "",
+                codeLength = codeLength,
             ),
             sourceCode = sourceCode,
             title = title,
@@ -584,7 +587,12 @@ class BojSubmitPanel(
 
                 var problemLink = cells[2].querySelector('a');
                 var problemId = problemLink ? problemLink.textContent.trim() : '';
-                var language = cells[6].textContent.trim();
+                var langCell = cells[6];
+                var langLink = langCell.querySelector('a');
+                var language = langLink ? langLink.textContent.trim() : langCell.firstChild ? langCell.firstChild.textContent.trim() : langCell.textContent.trim();
+                var memory = cells[4] ? cells[4].textContent.trim() : '';
+                var time = cells[5] ? cells[5].textContent.trim() : '';
+                var codeLength = cells[7] ? cells[7].textContent.trim() : '';
 
                 // 티어 SVG 추출
                 var tierImg = cells[2].querySelector('img[src*="tier/"]');
@@ -598,9 +606,14 @@ class BojSubmitPanel(
                 var submittedAt = '';
                 var timeCell = cells[8];
                 if (timeCell) {
-                    var timeLink = timeCell.querySelector('a[title]');
-                    if (timeLink) submittedAt = timeLink.getAttribute('title');
-                    else submittedAt = timeCell.textContent.trim();
+                    var timeEl = timeCell.querySelector('a.real-time-update') || timeCell.querySelector('a');
+                    if (timeEl) {
+                        submittedAt = timeEl.getAttribute('data-original-title')
+                            || timeEl.getAttribute('title')
+                            || timeEl.textContent.trim();
+                    } else {
+                        submittedAt = timeCell.textContent.trim();
+                    }
                 }
 
                 fetch('/source/' + submissionId)
@@ -618,6 +631,9 @@ class BojSubmitPanel(
                             problemId: problemId,
                             sourceCode: code,
                             language: language,
+                            memory: memory,
+                            time: time,
+                            codeLength: codeLength,
                             tierLevel: tierLevel,
                             submittedAt: submittedAt
                         });

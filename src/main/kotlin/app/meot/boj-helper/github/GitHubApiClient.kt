@@ -80,7 +80,7 @@ class GitHubApiClient(
         files: Map<String, String>,
     ): UploadResult {
         // 1. 브랜치 최신 커밋 SHA 조회
-        val refUrl = "https://api.github.com/repos/$repo/git/ref/heads/$branch"
+        val refUrl = "https://api.github.com/repos/$repo/git/refs/heads/$branch"
         val refResponse = sendGet(refUrl)
         val commitSha = parseJsonValue(refResponse, "sha")
             ?: throw GitHubApiException(0, "브랜치 커밋 SHA를 가져올 수 없습니다")
