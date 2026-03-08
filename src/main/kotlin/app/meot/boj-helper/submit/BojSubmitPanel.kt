@@ -410,6 +410,16 @@ class BojSubmitPanel(
         }.getOrNull()
     }
 
+    private fun findCurrentParsedProblem(): com.boj.intellij.parse.ParsedProblem? {
+        return runCatching {
+            val toolWindow = com.intellij.openapi.wm.ToolWindowManager.getInstance(project)
+                .getToolWindow("BOJ Helper") ?: return null
+            val content = toolWindow.contentManager.getContent(0) ?: return null
+            val panel = content.component as? com.boj.intellij.ui.BojToolWindowPanel ?: return null
+            panel.getCurrentParsedProblem()
+        }.getOrNull()
+    }
+
     private fun findCurrentProblemNumber(): String? {
         return runCatching {
             val toolWindow = ToolWindowManager.getInstance(project)
@@ -457,6 +467,8 @@ class BojSubmitPanel(
         val problemId = extractJsonValue(jsonString, "problemId") ?: return
         val sourceCode = extractJsonValue(jsonString, "sourceCode") ?: return
         val language = extractJsonValue(jsonString, "language") ?: return
+        val tierLevel = extractJsonInt(jsonString, "tierLevel") ?: 0
+        val submittedAt = extractJsonValue(jsonString, "submittedAt") ?: ""
 
         val settings = com.boj.intellij.settings.BojSettings.getInstance()
         if (!settings.state.githubEnabled) return
@@ -464,7 +476,9 @@ class BojSubmitPanel(
 
         val extension = LanguageMapper.toExtension(language) ?: "txt"
         val title = findProblemTitle() ?: "Problem $problemId"
+        val problemData = findCurrentParsedProblem()
 
+        // TODO: pass tierLevel, submittedAt, problemData when GitHubUploadService is updated
         com.boj.intellij.github.GitHubUploadService.upload(
             project = project,
             submitResult = SubmitResult(
@@ -507,6 +521,11 @@ class BojSubmitPanel(
             ?.replace("\\n", "\n")
             ?.replace("\\r", "\r")
             ?.replace("\\t", "\t")
+    }
+
+    private fun extractJsonInt(json: String, key: String): Int? {
+        val pattern = """"${Regex.escape(key)}"\s*:\s*(\d+)""".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)?.toIntOrNull()
     }
 
     private fun injectGitHubUploadButtons() {
@@ -565,6 +584,23 @@ class BojSubmitPanel(
                 var problemId = problemLink ? problemLink.textContent.trim() : '';
                 var language = cells[6].textContent.trim();
 
+                // 티어 SVG 추출
+                var tierImg = cells[2].querySelector('img[src*="tier/"]');
+                var tierLevel = 0;
+                if (tierImg) {
+                    var tierMatch = tierImg.src.match(/tier\/(\d+)\.svg/);
+                    if (tierMatch) tierLevel = parseInt(tierMatch[1], 10);
+                }
+
+                // 제출 일자 추출
+                var submittedAt = '';
+                var timeCell = cells[8];
+                if (timeCell) {
+                    var timeLink = timeCell.querySelector('a[title]');
+                    if (timeLink) submittedAt = timeLink.getAttribute('title');
+                    else submittedAt = timeCell.textContent.trim();
+                }
+
                 fetch('/source/' + submissionId)
                     .then(function(r) { return r.text(); })
                     .then(function(html) {
@@ -579,7 +615,9 @@ class BojSubmitPanel(
                             submissionId: submissionId,
                             problemId: problemId,
                             sourceCode: code,
-                            language: language
+                            language: language,
+                            tierLevel: tierLevel,
+                            submittedAt: submittedAt
                         });
                         $callbackJs
                     })
