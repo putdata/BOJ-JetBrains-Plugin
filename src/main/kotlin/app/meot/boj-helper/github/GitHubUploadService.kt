@@ -1,5 +1,6 @@
 package com.boj.intellij.github
 
+import com.boj.intellij.parse.ParsedProblem
 import com.boj.intellij.settings.BojSettings
 import com.boj.intellij.submit.SubmitResult
 import com.intellij.notification.NotificationGroupManager
@@ -15,12 +16,15 @@ object GitHubUploadService {
         sourceCode: String,
         title: String,
         extension: String,
+        tierLevel: Int = 0,
+        submittedAt: String = "",
+        problemData: ParsedProblem? = null,
         onSuccess: (() -> Unit)? = null,
         onFailure: (() -> Unit)? = null,
     ) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                doUpload(project, submitResult, sourceCode, title, extension)
+                doUpload(project, submitResult, sourceCode, title, extension, tierLevel, submittedAt, problemData)
                 onSuccess?.invoke()
             } catch (e: Exception) {
                 notifyError(project, e.message ?: "알 수 없는 오류가 발생했습니다")
@@ -35,6 +39,9 @@ object GitHubUploadService {
         sourceCode: String,
         title: String,
         extension: String,
+        tierLevel: Int = 0,
+        submittedAt: String = "",
+        problemData: ParsedProblem? = null,
     ) {
         val token = GitHubCredentialStore.getToken()
         if (token.isNullOrBlank()) {
@@ -50,29 +57,51 @@ object GitHubUploadService {
         }
 
         val branch = settings.state.githubBranch
-        val path = resolveUploadPath(settings.state.githubPathTemplate, submitResult, title, extension)
-        val commitMessage = resolveCommitMessage(settings.state.githubCommitTemplate, submitResult, title, extension)
+        val variables = TemplateEngine.buildVariables(submitResult, title, extension, tierLevel)
+        val path = TemplateEngine.render(settings.state.githubPathTemplate, variables)
+        val commitMessage = TemplateEngine.render(settings.state.githubCommitTemplate, variables)
 
         val client = GitHubApiClient(token)
 
-        // 기존 파일의 SHA 확인 (업데이트 시 필요)
-        val existingSha = try {
-            client.getFileSha(repo, path, branch)
-        } catch (e: GitHubApiClient.GitHubApiException) {
-            null
-        }
+        if (settings.state.githubReadmeEnabled && problemData != null) {
+            // README 포함 — Git Data API로 단일 커밋
+            val readmeContent = ReadmeGenerator.generate(
+                problemId = submitResult.problemId,
+                title = title,
+                tierLevel = tierLevel,
+                problemData = problemData,
+                submitResult = submitResult,
+                submittedAt = submittedAt,
+            )
+            val dir = path.substringBeforeLast('/', "")
+            val readmePath = if (dir.isNotEmpty()) "$dir/README.md" else "README.md"
 
-        val result = client.uploadFile(
-            repo = repo,
-            path = path,
-            content = sourceCode,
-            commitMessage = commitMessage,
-            branch = branch,
-            existingSha = existingSha,
-        )
-
-        if (result.success) {
-            notifySuccess(project, submitResult.problemId, title, result.htmlUrl)
+            val result = client.uploadMultipleFiles(
+                repo = repo,
+                branch = branch,
+                commitMessage = commitMessage,
+                files = mapOf(
+                    path to sourceCode,
+                    readmePath to readmeContent,
+                ),
+            )
+            if (result.success) {
+                notifySuccess(project, submitResult.problemId, title, null)
+            }
+        } else {
+            // 기존 단일 파일 업로드
+            val existingSha = try {
+                client.getFileSha(repo, path, branch)
+            } catch (e: GitHubApiClient.GitHubApiException) {
+                null
+            }
+            val result = client.uploadFile(
+                repo = repo, path = path, content = sourceCode,
+                commitMessage = commitMessage, branch = branch, existingSha = existingSha,
+            )
+            if (result.success) {
+                notifySuccess(project, submitResult.problemId, title, result.htmlUrl)
+            }
         }
     }
 

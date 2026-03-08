@@ -478,7 +478,6 @@ class BojSubmitPanel(
         val title = findProblemTitle() ?: "Problem $problemId"
         val problemData = findCurrentParsedProblem()
 
-        // TODO: pass tierLevel, submittedAt, problemData when GitHubUploadService is updated
         com.boj.intellij.github.GitHubUploadService.upload(
             project = project,
             submitResult = SubmitResult(
@@ -493,6 +492,9 @@ class BojSubmitPanel(
             sourceCode = sourceCode,
             title = title,
             extension = extension,
+            tierLevel = tierLevel,
+            submittedAt = submittedAt,
+            problemData = problemData,
             onSuccess = {
                 settings.markSubmissionUploaded(submissionId)
                 ApplicationManager.getApplication().invokeLater {
