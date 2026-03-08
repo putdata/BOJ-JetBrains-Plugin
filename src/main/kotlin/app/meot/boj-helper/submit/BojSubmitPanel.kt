@@ -392,34 +392,7 @@ class BojSubmitPanel(
 
     private fun startResultDetection() {
         val problemNumber = findCurrentProblemNumber() ?: return
-        resultDetector?.startDetection(problemNumber) { result ->
-            ApplicationManager.getApplication().invokeLater {
-                handleSubmitResult(result)
-            }
-        }
-    }
-
-    private fun handleSubmitResult(result: SubmitResult) {
-        if (!result.isAccepted()) return
-
-        val settings = com.boj.intellij.settings.BojSettings.getInstance()
-        if (!settings.state.githubEnabled) return
-
-        val editor = runCatching {
-            com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedTextEditor
-        }.getOrNull() ?: return
-        val document = editor.document
-        val sourceCode = document.text
-        val virtualFile = com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().getFile(document)
-        val extension = virtualFile?.extension ?: return
-
-        // 문제 제목 가져오기
-        val title = findProblemTitle() ?: "Problem ${result.problemId}"
-
-        // Java의 경우 클래스명을 Main으로 변환
-        val transformedCode = com.boj.intellij.ui.CopyForSubmitUtil.transformForSubmit(sourceCode, extension)
-
-        com.boj.intellij.github.GitHubUploadService.upload(project, result, transformedCode, title, extension)
+        resultDetector?.startDetection(problemNumber) { _ -> }
     }
 
     private fun findProblemTitle(): String? {
