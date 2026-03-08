@@ -29,7 +29,10 @@ object TemplateEngine {
         submitResult: SubmitResult,
         title: String,
         extension: String,
+        tierLevel: Int = 0,
     ): Map<String, String> {
+        val tierName = if (tierLevel > 0) (TierMapper.tierName(tierLevel) ?: "") else ""
+        val tierNum = if (tierLevel > 0) TierMapper.tierNum(tierLevel).toString() else ""
         return mapOf(
             "problemId" to submitResult.problemId,
             "title" to title,
@@ -37,6 +40,8 @@ object TemplateEngine {
             "ext" to extension,
             "memory" to submitResult.memory,
             "time" to submitResult.time,
+            "tier" to tierName,
+            "tierNum" to tierNum,
         )
     }
 }

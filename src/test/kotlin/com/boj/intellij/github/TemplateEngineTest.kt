@@ -1,5 +1,6 @@
 package com.boj.intellij.github
 
+import com.boj.intellij.submit.SubmitResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -85,7 +86,7 @@ class TemplateEngineTest {
 
     @Test
     fun `buildVariables creates correct map from SubmitResult`() {
-        val result = com.boj.intellij.submit.SubmitResult(
+        val result = SubmitResult(
             submissionId = "12345678",
             problemId = "1000",
             result = "맞았습니다!!",
@@ -105,5 +106,27 @@ class TemplateEngineTest {
         assertEquals("java", vars["ext"])
         assertEquals("14512", vars["memory"])
         assertEquals("132", vars["time"])
+    }
+
+    @Test
+    fun `buildVariables includes tier and tierNum from svgLevel`() {
+        val result = SubmitResult(
+            submissionId = "1", problemId = "1000", result = "맞았습니다!!",
+            memory = "14512", time = "132", language = "Java 11", codeLength = "512",
+        )
+        val vars = TemplateEngine.buildVariables(result, "A+B", "java", tierLevel = 11)
+        assertEquals("Gold", vars["tier"])
+        assertEquals("5", vars["tierNum"])
+    }
+
+    @Test
+    fun `buildVariables without tierLevel omits tier variables`() {
+        val result = SubmitResult(
+            submissionId = "1", problemId = "1000", result = "맞았습니다!!",
+            memory = "14512", time = "132", language = "Java 11", codeLength = "512",
+        )
+        val vars = TemplateEngine.buildVariables(result, "A+B", "java")
+        assertEquals("", vars["tier"])
+        assertEquals("", vars["tierNum"])
     }
 }
