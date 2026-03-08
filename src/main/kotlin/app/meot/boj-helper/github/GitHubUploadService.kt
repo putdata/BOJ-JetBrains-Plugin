@@ -65,6 +65,7 @@ object GitHubUploadService {
 
         if (settings.state.githubReadmeEnabled && problemData != null) {
             // README 포함 — Git Data API로 단일 커밋
+            val tags = SolvedAcApiClient.fetchTags(submitResult.problemId)
             val readmeContent = ReadmeGenerator.generate(
                 problemId = submitResult.problemId,
                 title = title,
@@ -72,6 +73,7 @@ object GitHubUploadService {
                 problemData = problemData,
                 submitResult = submitResult,
                 submittedAt = submittedAt,
+                tags = tags,
             )
             val dir = path.substringBeforeLast('/', "")
             val readmePath = if (dir.isNotEmpty()) "$dir/README.md" else "README.md"
