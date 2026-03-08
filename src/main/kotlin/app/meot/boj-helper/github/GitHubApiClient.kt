@@ -26,6 +26,7 @@ class GitHubApiClient(
             .uri(URI.create(url))
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github.v3+json")
+            .timeout(REQUEST_TIMEOUT)
             .GET()
             .build()
 
@@ -55,6 +56,7 @@ class GitHubApiClient(
             .uri(URI.create(url))
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github.v3+json")
+            .timeout(REQUEST_TIMEOUT)
             .PUT(HttpRequest.BodyPublishers.ofString(body))
             .build()
 
@@ -77,6 +79,7 @@ class GitHubApiClient(
             .uri(URI.create(url))
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github.v3+json")
+            .timeout(REQUEST_TIMEOUT)
             .GET()
             .build()
 
@@ -110,6 +113,8 @@ class GitHubApiClient(
         RuntimeException("GitHub API 오류 ($statusCode): ${message ?: "알 수 없는 오류"}")
 
     companion object {
+        private val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(15)
+
         fun buildApiUrl(repo: String, path: String): String {
             return "https://api.github.com/repos/$repo/contents/$path"
         }
