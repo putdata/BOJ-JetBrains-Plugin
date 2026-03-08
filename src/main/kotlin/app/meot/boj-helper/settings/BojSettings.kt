@@ -17,9 +17,9 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var githubRepo: String = "",
         var githubBranch: String = "main",
         var githubEnabled: Boolean = false,
-        var githubAutoUpload: Boolean = true,
         var githubPathTemplate: String = "{language}/{problemId}.{ext}",
         var githubCommitTemplate: String = "[{problemId}] {title}",
+        var uploadedSubmissionIds: MutableList<String> = mutableListOf(),
     )
 
     private var myState = State()
@@ -42,6 +42,16 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
     var defaultLanguage: String?
         get() = myState.defaultLanguage
         set(value) { myState.defaultLanguage = value }
+
+    fun isSubmissionUploaded(submissionId: String): Boolean {
+        return myState.uploadedSubmissionIds.contains(submissionId)
+    }
+
+    fun markSubmissionUploaded(submissionId: String) {
+        if (!myState.uploadedSubmissionIds.contains(submissionId)) {
+            myState.uploadedSubmissionIds.add(submissionId)
+        }
+    }
 
     companion object {
         fun getInstance(): BojSettings {

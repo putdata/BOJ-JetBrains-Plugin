@@ -54,11 +54,7 @@ class GitHubSettingsDialog(
         pathTemplateField.text = settings.state.githubPathTemplate
         commitTemplateField.text = settings.state.githubCommitTemplate
 
-        if (settings.state.githubAutoUpload) {
-            autoUploadRadio.isSelected = true
-        } else {
-            confirmUploadRadio.isSelected = true
-        }
+        autoUploadRadio.isSelected = true
 
         val existingToken = GitHubCredentialStore.getToken()
         if (!existingToken.isNullOrBlank()) {
@@ -244,8 +240,6 @@ class GitHubSettingsDialog(
         settings.state.githubBranch = branchField.text.trim().ifBlank { "main" }
         settings.state.githubPathTemplate = pathTemplateField.text.trim().ifBlank { "{language}/{problemId}.{ext}" }
         settings.state.githubCommitTemplate = commitTemplateField.text.trim().ifBlank { "[{problemId}] {title}" }
-        settings.state.githubAutoUpload = autoUploadRadio.isSelected
-
         val token = String(tokenField.password).trim()
         if (token.isNotBlank()) {
             GitHubCredentialStore.setToken(token)

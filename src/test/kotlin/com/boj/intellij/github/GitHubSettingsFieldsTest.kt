@@ -13,8 +13,8 @@ class GitHubSettingsFieldsTest {
         assertEquals("", state.githubRepo)
         assertEquals("main", state.githubBranch)
         assertFalse(state.githubEnabled)
-        assertEquals(true, state.githubAutoUpload)
         assertEquals("{language}/{problemId}.{ext}", state.githubPathTemplate)
         assertEquals("[{problemId}] {title}", state.githubCommitTemplate)
+        assertEquals(emptyList<String>(), state.uploadedSubmissionIds)
     }
 }

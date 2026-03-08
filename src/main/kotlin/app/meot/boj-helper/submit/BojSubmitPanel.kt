@@ -419,15 +419,7 @@ class BojSubmitPanel(
         // Java의 경우 클래스명을 Main으로 변환
         val transformedCode = com.boj.intellij.ui.CopyForSubmitUtil.transformForSubmit(sourceCode, extension)
 
-        if (settings.state.githubAutoUpload) {
-            com.boj.intellij.github.GitHubUploadService.upload(project, result, transformedCode, title, extension)
-        } else {
-            // 확인 대화상자
-            val dialog = com.boj.intellij.github.UploadConfirmDialog(project, result, title)
-            if (dialog.showAndGet()) {
-                com.boj.intellij.github.GitHubUploadService.upload(project, result, transformedCode, title, extension)
-            }
-        }
+        com.boj.intellij.github.GitHubUploadService.upload(project, result, transformedCode, title, extension)
     }
 
     private fun findProblemTitle(): String? {
