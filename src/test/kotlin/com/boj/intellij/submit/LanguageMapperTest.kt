@@ -51,4 +51,30 @@ class LanguageMapperTest {
         assertEquals("Java 11", LanguageMapper.toBojLanguageName("JAVA"))
         assertEquals("Python 3", LanguageMapper.toBojLanguageName("PY"))
     }
+
+    @Test
+    fun `toExtension maps BOJ language names to file extensions`() {
+        assertEquals("java", LanguageMapper.toExtension("Java 11"))
+        assertEquals("java", LanguageMapper.toExtension("Java 8"))
+        assertEquals("java", LanguageMapper.toExtension("Java 15"))
+        assertEquals("java", LanguageMapper.toExtension("Java 8 (OpenJDK)"))
+        assertEquals("kt", LanguageMapper.toExtension("Kotlin (JVM)"))
+        assertEquals("kt", LanguageMapper.toExtension("Kotlin (Native)"))
+        assertEquals("py", LanguageMapper.toExtension("Python 3"))
+        assertEquals("py", LanguageMapper.toExtension("PyPy3"))
+        assertEquals("cpp", LanguageMapper.toExtension("C++17"))
+        assertEquals("cpp", LanguageMapper.toExtension("C++14 (Clang)"))
+        assertEquals("c", LanguageMapper.toExtension("C99"))
+        assertEquals("c", LanguageMapper.toExtension("C11 (Clang)"))
+        assertEquals("js", LanguageMapper.toExtension("node.js"))
+        assertEquals("go", LanguageMapper.toExtension("Go"))
+        assertEquals("rs", LanguageMapper.toExtension("Rust 2021"))
+        assertEquals("ts", LanguageMapper.toExtension("TypeScript"))
+        assertEquals("rb", LanguageMapper.toExtension("Ruby"))
+        assertEquals("swift", LanguageMapper.toExtension("Swift"))
+        assertEquals("cs", LanguageMapper.toExtension("C#"))
+        assertEquals("sh", LanguageMapper.toExtension("Bash"))
+        assertEquals("txt", LanguageMapper.toExtension("Text"))
+        assertNull(LanguageMapper.toExtension("UnknownLanguage"))
+    }
 }

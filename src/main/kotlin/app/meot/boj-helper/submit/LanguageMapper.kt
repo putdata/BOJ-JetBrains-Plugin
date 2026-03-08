@@ -140,6 +140,43 @@ object LanguageMapper {
         "Rust 2024" to 116,
     )
 
+    private val LANGUAGE_TO_EXTENSION = mapOf(
+        "java" to listOf("Java 8", "Java 8 (OpenJDK)", "Java 11", "Java 15"),
+        "kt" to listOf("Kotlin (JVM)", "Kotlin (Native)"),
+        "py" to listOf("Python 2", "Python 3", "PyPy2", "PyPy3"),
+        "cpp" to listOf(
+            "C++98", "C++11", "C++14", "C++17", "C++20", "C++23", "C++26",
+            "C++98 (Clang)", "C++11 (Clang)", "C++14 (Clang)", "C++17 (Clang)", "C++20 (Clang)",
+        ),
+        "c" to listOf(
+            "C99", "C11", "C90", "C2x",
+            "C99 (Clang)", "C11 (Clang)", "C90 (Clang)", "C2x (Clang)",
+        ),
+        "js" to listOf("node.js", "Rhino"),
+        "ts" to listOf("TypeScript"),
+        "go" to listOf("Go", "Go (gccgo)"),
+        "rs" to listOf("Rust 2015", "Rust 2018", "Rust 2021", "Rust 2024"),
+        "rb" to listOf("Ruby"),
+        "swift" to listOf("Swift"),
+        "cs" to listOf("C#"),
+        "fs" to listOf("F#"),
+        "vb" to listOf("Visual Basic"),
+        "sh" to listOf("Bash"),
+        "php" to listOf("PHP"),
+        "d" to listOf("D", "D (LDC)"),
+        "txt" to listOf("Text"),
+    )
+
+    private val reverseLookup: Map<String, String> by lazy {
+        LANGUAGE_TO_EXTENSION.flatMap { (ext, langs) ->
+            langs.map { lang -> lang to ext }
+        }.toMap()
+    }
+
+    fun toExtension(bojLanguageName: String): String? {
+        return reverseLookup[bojLanguageName]
+    }
+
     fun toBojLanguageName(extension: String): String? {
         val ext = extension.lowercase()
         val app = ApplicationManager.getApplication() ?: return DEFAULT_MAPPINGS[ext]
