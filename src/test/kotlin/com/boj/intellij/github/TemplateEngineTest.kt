@@ -46,6 +46,44 @@ class TemplateEngineTest {
     }
 
     @Test
+    fun `render with u modifier returns uppercase`() {
+        val vars = mapOf("tier" to "Gold")
+        assertEquals("GOLD", TemplateEngine.render("{tier:u}", vars))
+    }
+
+    @Test
+    fun `render with l modifier returns lowercase`() {
+        val vars = mapOf("tier" to "Gold")
+        assertEquals("gold", TemplateEngine.render("{tier:l}", vars))
+    }
+
+    @Test
+    fun `render with c modifier returns capitalized`() {
+        val vars = mapOf("tier" to "GOLD")
+        assertEquals("Gold", TemplateEngine.render("{tier:c}", vars))
+    }
+
+    @Test
+    fun `render with unknown modifier keeps placeholder`() {
+        val vars = mapOf("tier" to "Gold")
+        assertEquals("{tier:x}", TemplateEngine.render("{tier:x}", vars))
+    }
+
+    @Test
+    fun `render complex template with mixed modifiers`() {
+        val vars = mapOf(
+            "tier" to "Gold",
+            "tierNum" to "5",
+            "problemId" to "1000",
+            "ext" to "java",
+        )
+        assertEquals(
+            "GOLD 5/1000.java",
+            TemplateEngine.render("{tier:u} {tierNum}/{problemId}.{ext}", vars),
+        )
+    }
+
+    @Test
     fun `buildVariables creates correct map from SubmitResult`() {
         val result = com.boj.intellij.submit.SubmitResult(
             submissionId = "12345678",

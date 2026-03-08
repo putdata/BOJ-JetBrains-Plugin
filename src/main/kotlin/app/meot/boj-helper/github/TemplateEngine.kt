@@ -4,12 +4,24 @@ import com.boj.intellij.submit.SubmitResult
 
 object TemplateEngine {
 
-    private val VARIABLE_PATTERN = Regex("""\{(\w+)}""")
+    private val VARIABLE_PATTERN = Regex("""\{(\w+)(?::([ulc]))?\}""")
 
     fun render(template: String, variables: Map<String, String>): String {
         return VARIABLE_PATTERN.replace(template) { match ->
             val key = match.groupValues[1]
-            variables[key] ?: match.value
+            val modifier = match.groupValues[2]
+            val value = variables[key] ?: return@replace match.value
+            applyModifier(value, modifier)
+        }
+    }
+
+    private fun applyModifier(value: String, modifier: String): String {
+        return when (modifier) {
+            "u" -> value.uppercase()
+            "l" -> value.lowercase()
+            "c" -> value.lowercase().replaceFirstChar { it.uppercase() }
+            "" -> value
+            else -> value
         }
     }
 
