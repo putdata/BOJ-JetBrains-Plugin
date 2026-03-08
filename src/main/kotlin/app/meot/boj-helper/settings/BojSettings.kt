@@ -48,7 +48,7 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
     }
 
     fun markSubmissionUploaded(submissionId: String) {
-        if (!myState.uploadedSubmissionIds.contains(submissionId)) {
+        if (submissionId.all { it.isDigit() } && !myState.uploadedSubmissionIds.contains(submissionId)) {
             myState.uploadedSubmissionIds.add(submissionId)
         }
     }
