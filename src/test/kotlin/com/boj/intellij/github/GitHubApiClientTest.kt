@@ -55,4 +55,32 @@ class GitHubApiClientTest {
         val json = """{"message":"Not Found","documentation_url":"https://docs.github.com"}"""
         assertEquals("Not Found", GitHubApiClient.parseErrorMessage(json))
     }
+
+    @Test
+    fun `buildCreateTreeRequestBody creates correct JSON`() {
+        val body = GitHubApiClient.buildCreateTreeRequestBody(
+            baseTreeSha = "abc123",
+            files = mapOf(
+                "GOLD 5/1000/solution.java" to "public class Main {}",
+                "GOLD 5/1000/README.md" to "# 1000 - A+B",
+            ),
+        )
+        assertTrue(body.contains("\"base_tree\":\"abc123\""))
+        assertTrue(body.contains("\"path\":\"GOLD 5/1000/solution.java\""))
+        assertTrue(body.contains("\"path\":\"GOLD 5/1000/README.md\""))
+        assertTrue(body.contains("\"mode\":\"100644\""))
+        assertTrue(body.contains("\"type\":\"blob\""))
+    }
+
+    @Test
+    fun `buildCreateCommitRequestBody creates correct JSON`() {
+        val body = GitHubApiClient.buildCreateCommitRequestBody(
+            treeSha = "tree123",
+            parentSha = "parent456",
+            message = "[1000] A+B",
+        )
+        assertTrue(body.contains("\"tree\":\"tree123\""))
+        assertTrue(body.contains("\"parents\":[\"parent456\"]"))
+        assertTrue(body.contains("\"message\":\"[1000] A+B\""))
+    }
 }
