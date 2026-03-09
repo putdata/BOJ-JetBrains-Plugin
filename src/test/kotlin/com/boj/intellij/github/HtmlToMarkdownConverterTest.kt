@@ -104,4 +104,28 @@ class HtmlToMarkdownConverterTest {
         val html = """<img src="https://upload.acmicpc.net/img.png">"""
         assertEquals("![](https://upload.acmicpc.net/img.png)", HtmlToMarkdownConverter.convert(html))
     }
+
+    @Test
+    fun `converts simple table`() {
+        val html = """
+            <table>
+              <thead><tr><th>A</th><th>B</th></tr></thead>
+              <tbody><tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr></tbody>
+            </table>
+        """.trimIndent()
+        val expected = "| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |"
+        assertEquals(expected, HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts table without thead`() {
+        val html = """
+            <table>
+              <tr><td>A</td><td>B</td></tr>
+              <tr><td>1</td><td>2</td></tr>
+            </table>
+        """.trimIndent()
+        val expected = "| A | B |\n| --- | --- |\n| 1 | 2 |"
+        assertEquals(expected, HtmlToMarkdownConverter.convert(html))
+    }
 }

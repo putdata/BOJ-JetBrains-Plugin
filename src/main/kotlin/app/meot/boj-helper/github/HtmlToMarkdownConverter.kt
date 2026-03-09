@@ -96,9 +96,33 @@ object HtmlToMarkdownConverter {
                 val alt = element.attr("alt")
                 sb.append("![${alt}](${src})")
             }
+            "table" -> {
+                ensureBlankLine(sb)
+                val rows = element.select("tr")
+                rows.forEachIndexed { index, row ->
+                    val cells = row.select("th, td")
+                    val rowText = cells.joinToString(" | ") { cellText(it, listDepth) }
+                    sb.append("| ${rowText} |")
+                    if (index == 0) {
+                        sb.append("\n")
+                        sb.append("| ${cells.joinToString(" | ") { "---" }} |")
+                    }
+                    if (index < rows.size - 1) sb.append("\n")
+                }
+                ensureBlankLine(sb)
+            }
+            "thead", "tbody", "tfoot", "tr", "th", "td" -> {
+                // These are handled by the "table" case above; skip standalone processing
+            }
             "span" -> convertChildren(element, sb, listDepth)
             else -> convertChildren(element, sb, listDepth)
         }
+    }
+
+    private fun cellText(cell: Element, listDepth: Int = 0): String {
+        val sb = StringBuilder()
+        convertChildren(cell, sb, listDepth)
+        return sb.toString().trim().replace("\n", " ")
     }
 
     private fun ensureBlankLine(sb: StringBuilder) {
