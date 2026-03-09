@@ -11,6 +11,10 @@ object GitHubCredentialStore {
         generateServiceName("BOJ Helper", "GitHubToken"),
     )
 
+    private val usernameAttributes = CredentialAttributes(
+        generateServiceName("BOJ Helper", "GitHubUsername"),
+    )
+
     fun getToken(): String? {
         return PasswordSafe.instance.getPassword(credentialAttributes)
     }
@@ -25,5 +29,22 @@ object GitHubCredentialStore {
 
     fun hasToken(): Boolean {
         return !getToken().isNullOrBlank()
+    }
+
+    fun getUsername(): String? {
+        return PasswordSafe.instance.getPassword(usernameAttributes)
+    }
+
+    fun setUsername(username: String) {
+        PasswordSafe.instance.set(usernameAttributes, Credentials("github", username))
+    }
+
+    fun removeUsername() {
+        PasswordSafe.instance.set(usernameAttributes, null)
+    }
+
+    fun clearAll() {
+        removeToken()
+        removeUsername()
     }
 }
