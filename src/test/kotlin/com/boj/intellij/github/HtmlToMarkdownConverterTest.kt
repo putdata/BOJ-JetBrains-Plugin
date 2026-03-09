@@ -128,4 +128,22 @@ class HtmlToMarkdownConverterTest {
         val expected = "| A | B |\n| --- | --- |\n| 1 | 2 |"
         assertEquals(expected, HtmlToMarkdownConverter.convert(html))
     }
+
+    @Test
+    fun `converts inline code`() {
+        val html = "<p>Use <code>printf</code> function</p>"
+        assertEquals("Use `printf` function", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts pre block to code fence`() {
+        val html = "<pre>int main() {\n  return 0;\n}</pre>"
+        assertEquals("```\nint main() {\n  return 0;\n}\n```", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts pre with code child`() {
+        val html = "<pre><code>x = 1\ny = 2</code></pre>"
+        assertEquals("```\nx = 1\ny = 2\n```", HtmlToMarkdownConverter.convert(html))
+    }
 }

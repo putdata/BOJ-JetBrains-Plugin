@@ -114,6 +114,28 @@ object HtmlToMarkdownConverter {
             "thead", "tbody", "tfoot", "tr", "th", "td" -> {
                 // These are handled by the "table" case above; skip standalone processing
             }
+            "code" -> {
+                if (element.parent()?.tagName()?.lowercase() == "pre") {
+                    // Inside <pre>, handled by the "pre" case
+                    sb.append(element.wholeText())
+                } else {
+                    sb.append("`")
+                    sb.append(element.text())
+                    sb.append("`")
+                }
+            }
+            "pre" -> {
+                ensureBlankLine(sb)
+                sb.append("```\n")
+                val codeChild = element.selectFirst("code")
+                if (codeChild != null) {
+                    sb.append(codeChild.wholeText())
+                } else {
+                    sb.append(element.wholeText())
+                }
+                sb.append("\n```")
+                ensureBlankLine(sb)
+            }
             "span" -> convertChildren(element, sb, listDepth)
             else -> convertChildren(element, sb, listDepth)
         }
