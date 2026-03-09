@@ -18,9 +18,9 @@ class ReadmeGeneratorTest {
         problemDescription = "두 정수 A와 B를 입력받은 다음, A+B를 출력하는 프로그램을 작성하시오.",
         inputDescription = "첫째 줄에 A와 B가 주어진다.",
         outputDescription = "첫째 줄에 A+B를 출력한다.",
-        problemDescriptionHtml = "",
-        inputDescriptionHtml = "",
-        outputDescriptionHtml = "",
+        problemDescriptionHtml = "<p>두 정수 A와 B를 입력받은 다음, A+B를 출력하는 프로그램을 작성하시오.</p>",
+        inputDescriptionHtml = "<p>첫째 줄에 A와 B가 주어진다.</p>",
+        outputDescriptionHtml = "<p>첫째 줄에 A+B를 출력한다.</p>",
         samplePairs = emptyList(),
     )
 
@@ -83,5 +83,20 @@ class ReadmeGeneratorTest {
         )
         assertContains(readme, "- 수학")
         assertContains(readme, "- 구현")
+    }
+
+    @Test
+    fun `generate uses html conversion for problem description`() {
+        val problemWithHtml = sampleProblem.copy(
+            problemDescriptionHtml = "<p>두 정수 <strong>A</strong>와 <strong>B</strong>를 입력받는다.</p><ul><li>조건 1</li><li>조건 2</li></ul>",
+        )
+        val readme = ReadmeGenerator.generate(
+            problemId = "1000", title = "A+B", tierLevel = 11,
+            problemData = problemWithHtml, submitResult = sampleResult,
+            submittedAt = "2026-03-09 12:34:56",
+        )
+        assertContains(readme, "**A**")
+        assertContains(readme, "- 조건 1")
+        assertContains(readme, "- 조건 2")
     }
 }
