@@ -57,7 +57,7 @@ object GitHubUploadService {
         val branch = settings.state.githubBranch
         val variables = TemplateEngine.buildVariables(submitResult, title, extension, tierLevel)
         val path = TemplateEngine.render(settings.state.githubPathTemplate, variables)
-        val commitMessage = TemplateEngine.render(settings.state.githubCommitTemplate, variables)
+        val commitMessage = TemplateEngine.render(settings.state.githubCommitTemplate, variables) + " - BOJ Helper"
 
         val client = GitHubApiClient(token)
 

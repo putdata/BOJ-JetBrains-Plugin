@@ -328,8 +328,8 @@ class GitHubSettingsDialog(
         settings.state.githubEnabled = enabledCheckbox.isSelected
         settings.state.githubRepo = (repoComboBox.selectedItem as? String)?.trim() ?: ""
         settings.state.githubBranch = branchField.text.trim().ifBlank { "main" }
-        settings.state.githubPathTemplate = pathTemplateField.text.trim().ifBlank { "{language}/{problemId}.{ext}" }
-        settings.state.githubCommitTemplate = commitTemplateField.text.trim().ifBlank { "[{problemId}] {title}" }
+        settings.state.githubPathTemplate = pathTemplateField.text.trim().ifBlank { "백준/{tier}/{problemId}. {title}/{title}.{ext}" }
+        settings.state.githubCommitTemplate = commitTemplateField.text.trim().ifBlank { "[{tier} {tierNum}] Title: {title}, Time: {time} ms, Memory: {memory} KB" }
         settings.state.githubReadmeEnabled = readmeCheckbox.isSelected
         super.doOKAction()
     }

@@ -17,8 +17,8 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var githubRepo: String = "",
         var githubBranch: String = "main",
         var githubEnabled: Boolean = false,
-        var githubPathTemplate: String = "{language}/{problemId}.{ext}",
-        var githubCommitTemplate: String = "[{problemId}] {title}",
+        var githubPathTemplate: String = "백준/{tier}/{problemId}. {title}/{title}.{ext}",
+        var githubCommitTemplate: String = "[{tier} {tierNum}] Title: {title}, Time: {time} ms, Memory: {memory} KB",
         var githubReadmeEnabled: Boolean = false,
         var uploadedSubmissionIds: MutableList<String> = mutableListOf(),
     )
