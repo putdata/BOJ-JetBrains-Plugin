@@ -146,4 +146,16 @@ class HtmlToMarkdownConverterTest {
         val html = "<pre><code>x = 1\ny = 2</code></pre>"
         assertEquals("```\nx = 1\ny = 2\n```", HtmlToMarkdownConverter.convert(html))
     }
+
+    @Test
+    fun `preserves inline math`() {
+        val html = "<p>변수 \$a+b\$는 정수이다.</p>"
+        assertEquals("변수 \$a+b\$는 정수이다.", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `preserves display math`() {
+        val html = "<p>\$\$\\sum_{i=1}^{n} a_i\$\$</p>"
+        assertEquals("\$\$\\sum_{i=1}^{n} a_i\$\$", HtmlToMarkdownConverter.convert(html))
+    }
 }
