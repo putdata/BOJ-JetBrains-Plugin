@@ -56,21 +56,6 @@ class GitHubApiClientTest {
         assertEquals("Not Found", GitHubApiClient.parseErrorMessage(json))
     }
 
-    @Test
-    fun `buildCreateTreeRequestBody creates correct JSON`() {
-        val body = GitHubApiClient.buildCreateTreeRequestBody(
-            baseTreeSha = "abc123",
-            files = mapOf(
-                "GOLD 5/1000/solution.java" to "public class Main {}",
-                "GOLD 5/1000/README.md" to "# 1000 - A+B",
-            ),
-        )
-        assertTrue(body.contains("\"base_tree\":\"abc123\""))
-        assertTrue(body.contains("\"path\":\"GOLD 5/1000/solution.java\""))
-        assertTrue(body.contains("\"path\":\"GOLD 5/1000/README.md\""))
-        assertTrue(body.contains("\"mode\":\"100644\""))
-        assertTrue(body.contains("\"type\":\"blob\""))
-    }
 
     @Test
     fun `buildCreateCommitRequestBody creates correct JSON`() {
@@ -82,5 +67,25 @@ class GitHubApiClientTest {
         assertTrue(body.contains("\"tree\":\"tree123\""))
         assertTrue(body.contains("\"parents\":[\"parent456\"]"))
         assertTrue(body.contains("\"message\":\"[1000] A+B\""))
+    }
+
+    @Test
+    fun `buildCreateTreeRequestBodyFromShas creates correct JSON`() {
+        val body = GitHubApiClient.buildCreateTreeRequestBodyFromShas(
+            baseTreeSha = "tree123",
+            fileShas = listOf(
+                "Gold 5/1000.java" to "blobsha1",
+                "Gold 5/README.md" to "blobsha2",
+            ),
+        )
+        assertTrue(body.contains("\"base_tree\":\"tree123\""))
+        assertTrue(body.contains("\"path\":\"Gold 5/1000.java\""))
+        assertTrue(body.contains("\"sha\":\"blobsha1\""))
+        assertTrue(body.contains("\"path\":\"Gold 5/README.md\""))
+        assertTrue(body.contains("\"sha\":\"blobsha2\""))
+        assertTrue(body.contains("\"mode\":\"100644\""))
+        assertTrue(body.contains("\"type\":\"blob\""))
+        // content 필드가 없어야 함 (sha로 참조)
+        assertTrue(!body.contains("\"content\""))
     }
 }

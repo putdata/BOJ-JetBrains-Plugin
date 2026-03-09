@@ -91,9 +91,20 @@ class GitHubApiClient(
         val treeSha = parseTreeSha(commitResponse)
             ?: throw GitHubApiException(0, "트리 SHA를 가져올 수 없습니다")
 
-        // 2. 새 Tree 생성
+        // 2. 각 파일을 Blob으로 생성 (Base64 인코딩)
+        val blobUrl = "https://api.github.com/repos/$repo/git/blobs"
+        val fileShas = files.map { (path, content) ->
+            val encoded = Base64.getEncoder().encodeToString(content.toByteArray())
+            val blobBody = """{"content":"$encoded","encoding":"base64"}"""
+            val blobResponse = sendPost(blobUrl, blobBody)
+            val blobSha = parseJsonValue(blobResponse, "sha")
+                ?: throw GitHubApiException(0, "Blob 생성 실패: $path")
+            path to blobSha
+        }
+
+        // 3. 새 Tree 생성 (Blob SHA 참조)
         val treeUrl = "https://api.github.com/repos/$repo/git/trees"
-        val treeBody = buildCreateTreeRequestBody(treeSha, files)
+        val treeBody = buildCreateTreeRequestBodyFromShas(treeSha, fileShas)
         val treeResponse = sendPost(treeUrl, treeBody)
         val newTreeSha = parseJsonValue(treeResponse, "sha")
             ?: throw GitHubApiException(0, "새 트리를 생성할 수 없습니다")
@@ -132,6 +143,7 @@ class GitHubApiClient(
             .uri(URI.create(url))
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github.v3+json")
+            .header("Content-Type", "application/json")
             .timeout(REQUEST_TIMEOUT)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build()
@@ -147,6 +159,7 @@ class GitHubApiClient(
             .uri(URI.create(url))
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github.v3+json")
+            .header("Content-Type", "application/json")
             .timeout(REQUEST_TIMEOUT)
             .method("PATCH", HttpRequest.BodyPublishers.ofString(body))
             .build()
@@ -241,12 +254,12 @@ class GitHubApiClient(
             return pattern.find(json)?.groupValues?.get(1)
         }
 
-        fun buildCreateTreeRequestBody(
+        fun buildCreateTreeRequestBodyFromShas(
             baseTreeSha: String,
-            files: Map<String, String>,
+            fileShas: List<Pair<String, String>>,
         ): String {
-            val treeEntries = files.entries.joinToString(",") { (path, content) ->
-                """{"path":"${escapeJson(path)}","mode":"100644","type":"blob","content":"${escapeJson(content)}"}"""
+            val treeEntries = fileShas.joinToString(",") { (path, sha) ->
+                """{"path":"${escapeJson(path)}","mode":"100644","type":"blob","sha":"${escapeJson(sha)}"}"""
             }
             return """{"base_tree":"${escapeJson(baseTreeSha)}","tree":[$treeEntries]}"""
         }

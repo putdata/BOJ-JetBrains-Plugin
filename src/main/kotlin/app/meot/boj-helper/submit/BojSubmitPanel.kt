@@ -465,7 +465,6 @@ class BojSubmitPanel(
     private fun handleUploadRequest(jsonString: String) {
         val submissionId = extractJsonValue(jsonString, "submissionId") ?: return
         val problemId = extractJsonValue(jsonString, "problemId") ?: return
-        val sourceCode = extractJsonValue(jsonString, "sourceCode") ?: return
         val language = extractJsonValue(jsonString, "language") ?: return
         val memory = extractJsonValue(jsonString, "memory") ?: ""
         val time = extractJsonValue(jsonString, "time") ?: ""
@@ -481,41 +480,91 @@ class BojSubmitPanel(
         val title = findProblemTitle() ?: "Problem $problemId"
         val problemData = findCurrentParsedProblem()
 
-        com.boj.intellij.github.GitHubUploadService.upload(
-            project = project,
-            submitResult = SubmitResult(
-                submissionId = submissionId,
-                problemId = problemId,
-                result = "맞았습니다!!",
-                memory = memory,
-                time = time,
-                language = language,
-                codeLength = codeLength,
-            ),
-            sourceCode = sourceCode,
-            title = title,
-            extension = extension,
-            tierLevel = tierLevel,
-            submittedAt = submittedAt,
-            problemData = problemData,
-            onSuccess = {
-                settings.markSubmissionUploaded(submissionId)
-                ApplicationManager.getApplication().invokeLater {
-                    browser?.cefBrowser?.executeJavaScript(
-                        "if(window.__bojMarkUploaded) __bojMarkUploaded('$submissionId');",
-                        browser.cefBrowser.url, 0
-                    )
-                }
-            },
-            onFailure = {
+        fetchSourceCode(submissionId) { sourceCode ->
+            if (sourceCode.isBlank()) {
                 ApplicationManager.getApplication().invokeLater {
                     browser?.cefBrowser?.executeJavaScript(
                         "if(window.__bojMarkFailed) __bojMarkFailed('$submissionId');",
-                        browser.cefBrowser.url, 0
+                        browser?.cefBrowser?.url ?: "", 0
                     )
                 }
-            },
-        )
+                return@fetchSourceCode
+            }
+
+            com.boj.intellij.github.GitHubUploadService.upload(
+                project = project,
+                submitResult = SubmitResult(
+                    submissionId = submissionId,
+                    problemId = problemId,
+                    result = "맞았습니다!!",
+                    memory = memory,
+                    time = time,
+                    language = language,
+                    codeLength = codeLength,
+                ),
+                sourceCode = sourceCode,
+                title = title,
+                extension = extension,
+                tierLevel = tierLevel,
+                submittedAt = submittedAt,
+                problemData = problemData,
+                onSuccess = {
+                    settings.markSubmissionUploaded(submissionId)
+                    ApplicationManager.getApplication().invokeLater {
+                        browser?.cefBrowser?.executeJavaScript(
+                            "if(window.__bojMarkUploaded) __bojMarkUploaded('$submissionId');",
+                            browser?.cefBrowser?.url ?: "", 0
+                        )
+                    }
+                },
+                onFailure = {
+                    ApplicationManager.getApplication().invokeLater {
+                        browser?.cefBrowser?.executeJavaScript(
+                            "if(window.__bojMarkFailed) __bojMarkFailed('$submissionId');",
+                            browser?.cefBrowser?.url ?: "", 0
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    private fun fetchSourceCode(submissionId: String, callback: (String) -> Unit) {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val cookies = collectCookies("https://www.acmicpc.net")
+                val request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://www.acmicpc.net/source/download/$submissionId"))
+                    .header("Cookie", cookies)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .header("Referer", "https://www.acmicpc.net/status")
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .timeout(java.time.Duration.ofSeconds(15))
+                    .GET()
+                    .build()
+                val response = java.net.http.HttpClient.newBuilder()
+                    .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                    .build()
+                    .send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+                callback(response.body() ?: "")
+            } catch (e: Exception) {
+                callback("")
+            }
+        }
+    }
+
+    private fun collectCookies(url: String): String {
+        val cookies = mutableListOf<String>()
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val cookieManager = org.cef.network.CefCookieManager.getGlobalManager()
+        if (cookieManager == null) return ""
+        cookieManager.visitUrlCookies(url, true) { cookie, _, total, _ ->
+            cookies.add("${cookie.name}=${cookie.value}")
+            if (cookies.size >= total) latch.countDown()
+            true
+        }
+        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        return cookies.joinToString("; ")
     }
 
     private fun extractJsonValue(json: String, key: String): String? {
@@ -616,32 +665,17 @@ class BojSubmitPanel(
                     }
                 }
 
-                fetch('/source/' + submissionId)
-                    .then(function(r) { return r.text(); })
-                    .then(function(html) {
-                        var parser = new DOMParser();
-                        var doc = parser.parseFromString(html, 'text/html');
-                        var textarea = doc.querySelector('textarea.codemirror-textarea')
-                            || doc.querySelector('textarea.no-mathjax')
-                            || doc.querySelector('textarea');
-                        var code = textarea ? (textarea.value || textarea.textContent) : '';
-
-                        var json = JSON.stringify({
-                            submissionId: submissionId,
-                            problemId: problemId,
-                            sourceCode: code,
-                            language: language,
-                            memory: memory,
-                            time: time,
-                            codeLength: codeLength,
-                            tierLevel: tierLevel,
-                            submittedAt: submittedAt
-                        });
-                        $callbackJs
-                    })
-                    .catch(function(e) {
-                        __bojMarkFailed(submissionId);
-                    });
+                var json = JSON.stringify({
+                    submissionId: submissionId,
+                    problemId: problemId,
+                    language: language,
+                    memory: memory,
+                    time: time,
+                    codeLength: codeLength,
+                    tierLevel: tierLevel,
+                    submittedAt: submittedAt
+                });
+                $callbackJs
             };
 
             window.__bojMarkUploaded = function(sid) {
