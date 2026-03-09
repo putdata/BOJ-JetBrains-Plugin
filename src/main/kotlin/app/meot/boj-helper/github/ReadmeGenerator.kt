@@ -48,23 +48,23 @@ object ReadmeGenerator {
             appendLine()
 
             // 문제 설명
-            if (problemData.problemDescription.isNotBlank()) {
+            if (problemData.problemDescriptionHtml.isNotBlank()) {
                 appendLine("## 문제 설명")
-                appendLine(problemData.problemDescription)
+                appendLine(HtmlToMarkdownConverter.convert(problemData.problemDescriptionHtml))
                 appendLine()
             }
 
             // 입력
-            if (problemData.inputDescription.isNotBlank()) {
+            if (problemData.inputDescriptionHtml.isNotBlank()) {
                 appendLine("## 입력")
-                appendLine(problemData.inputDescription)
+                appendLine(HtmlToMarkdownConverter.convert(problemData.inputDescriptionHtml))
                 appendLine()
             }
 
             // 출력
-            if (problemData.outputDescription.isNotBlank()) {
+            if (problemData.outputDescriptionHtml.isNotBlank()) {
                 appendLine("## 출력")
-                appendLine(problemData.outputDescription)
+                appendLine(HtmlToMarkdownConverter.convert(problemData.outputDescriptionHtml))
             }
         }.trimEnd() + "\n"
     }
