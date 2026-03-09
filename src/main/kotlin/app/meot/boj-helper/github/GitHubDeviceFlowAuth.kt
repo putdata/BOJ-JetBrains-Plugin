@@ -12,8 +12,7 @@ import java.time.Duration
  */
 object GitHubDeviceFlowAuth {
 
-    // TODO: GitHub OAuth App 등록 후 실제 Client ID로 교체
-    private const val CLIENT_ID = "YOUR_CLIENT_ID"
+    private const val CLIENT_ID = "Iv23lilkydYwKorZcjw5"
     private const val SCOPE = "repo"
 
     private val httpClient: HttpClient = HttpClient.newBuilder()
