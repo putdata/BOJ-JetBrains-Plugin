@@ -13,6 +13,14 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var timeoutSeconds: Int = 10,
         var languageMappings: MutableMap<String, String> = mutableMapOf(),
         var defaultLanguage: String? = null,
+        // GitHub 설정
+        var githubRepo: String = "",
+        var githubBranch: String = "main",
+        var githubEnabled: Boolean = false,
+        var githubPathTemplate: String = "백준/{tier}/{problemId}. {title}/{title}.{ext}",
+        var githubCommitTemplate: String = "[{tier} {tierNum}] Title: {title}, Time: {time} ms, Memory: {memory} KB",
+        var githubReadmeEnabled: Boolean = false,
+        var uploadedSubmissionIds: MutableList<String> = mutableListOf(),
     )
 
     private var myState = State()
@@ -35,6 +43,16 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
     var defaultLanguage: String?
         get() = myState.defaultLanguage
         set(value) { myState.defaultLanguage = value }
+
+    fun isSubmissionUploaded(submissionId: String): Boolean {
+        return myState.uploadedSubmissionIds.contains(submissionId)
+    }
+
+    fun markSubmissionUploaded(submissionId: String) {
+        if (submissionId.all { it.isDigit() } && !myState.uploadedSubmissionIds.contains(submissionId)) {
+            myState.uploadedSubmissionIds.add(submissionId)
+        }
+    }
 
     companion object {
         fun getInstance(): BojSettings {

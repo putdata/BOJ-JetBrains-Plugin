@@ -13,6 +13,8 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
+import com.intellij.ui.jcef.JBCefBrowserBase
+import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.handler.CefLifeSpanHandlerAdapter
@@ -34,6 +36,9 @@ class BojSubmitPanel(
     private val submitButton = JButton("제출 페이지").apply { isEnabled = false }
     private val updateCodeButton = JButton("소스코드 업데이트").apply { isEnabled = false }
     private val languageSettingsButton = JButton("언어 설정")
+    private val githubButton = JButton("GitHub")
+    private var resultDetector: SubmitResultDetector? = null
+    private var uploadJsQuery: JBCefJSQuery? = null
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
@@ -57,6 +62,8 @@ class BojSubmitPanel(
             wireLoadHandler()
             wireLifeSpanHandler()
             wireCurrentFileTracking()
+            resultDetector = SubmitResultDetector(browser, this)
+            setupUploadJsQuery()
         } else {
             add(buildJcefNotSupportedPanel(), BorderLayout.CENTER)
         }
@@ -76,6 +83,7 @@ class BojSubmitPanel(
         actionPanel.add(updateCodeButton)
         actionPanel.add(submitButton)
         actionPanel.add(languageSettingsButton)
+        actionPanel.add(githubButton)
         panel.add(actionPanel, BorderLayout.EAST)
 
         return panel
@@ -113,6 +121,9 @@ class BojSubmitPanel(
             }
         }
         languageSettingsButton.addActionListener { LanguageSettingsDialog(project).show() }
+        githubButton.addActionListener {
+            com.boj.intellij.github.GitHubSettingsDialog(project).show()
+        }
     }
 
     private fun isActiveTab(): Boolean {
@@ -188,6 +199,12 @@ class BojSubmitPanel(
                 updateCodeButton.isEnabled = true
                 extractUsername()
                 injectSubmitFormData()
+            }
+            url.contains("/status") -> {
+                updateCodeButton.isEnabled = false
+                extractUsername()
+                startResultDetection()
+                injectGitHubUploadButtons()
             }
             url.startsWith(BOJ_BASE_URL) && !url.contains("/login") -> {
                 updateCodeButton.isEnabled = false
@@ -378,6 +395,31 @@ class BojSubmitPanel(
         return true
     }
 
+    private fun startResultDetection() {
+        val problemNumber = findCurrentProblemNumber() ?: return
+        resultDetector?.startDetection(problemNumber) { _ -> }
+    }
+
+    private fun findProblemTitle(): String? {
+        return runCatching {
+            val toolWindow = com.intellij.openapi.wm.ToolWindowManager.getInstance(project)
+                .getToolWindow("BOJ Helper") ?: return null
+            val content = toolWindow.contentManager.getContent(0) ?: return null
+            val bojPanel = content.component as? com.boj.intellij.ui.BojToolWindowPanel ?: return null
+            bojPanel.getCurrentProblemTitle()
+        }.getOrNull()
+    }
+
+    private fun findCurrentParsedProblem(): com.boj.intellij.parse.ParsedProblem? {
+        return runCatching {
+            val toolWindow = com.intellij.openapi.wm.ToolWindowManager.getInstance(project)
+                .getToolWindow("BOJ Helper") ?: return null
+            val content = toolWindow.contentManager.getContent(0) ?: return null
+            val panel = content.component as? com.boj.intellij.ui.BojToolWindowPanel ?: return null
+            panel.getCurrentParsedProblem()
+        }.getOrNull()
+    }
+
     private fun findCurrentProblemNumber(): String? {
         return runCatching {
             val toolWindow = ToolWindowManager.getInstance(project)
@@ -408,7 +450,274 @@ class BojSubmitPanel(
         }
     }
 
+    private fun setupUploadJsQuery() {
+        if (browser == null) return
+        uploadJsQuery = JBCefJSQuery.create(
+            browser as JBCefBrowserBase
+        ).also { query ->
+            query.addHandler { jsonString ->
+                handleUploadRequest(jsonString)
+                null
+            }
+        }
+    }
+
+    private fun handleUploadRequest(jsonString: String) {
+        val submissionId = extractJsonValue(jsonString, "submissionId") ?: return
+        val problemId = extractJsonValue(jsonString, "problemId") ?: return
+        val language = extractJsonValue(jsonString, "language") ?: return
+        val memory = extractJsonValue(jsonString, "memory") ?: ""
+        val time = extractJsonValue(jsonString, "time") ?: ""
+        val codeLength = extractJsonValue(jsonString, "codeLength") ?: ""
+        val tierLevel = extractJsonInt(jsonString, "tierLevel") ?: 0
+        val submittedAt = extractJsonValue(jsonString, "submittedAt") ?: ""
+
+        val settings = com.boj.intellij.settings.BojSettings.getInstance()
+        if (!settings.state.githubEnabled) return
+        if (settings.isSubmissionUploaded(submissionId)) return
+
+        val extension = LanguageMapper.toExtension(language) ?: "txt"
+        val title = findProblemTitle() ?: "Problem $problemId"
+        val problemData = findCurrentParsedProblem()
+
+        fetchSourceCode(submissionId) { sourceCode ->
+            if (sourceCode.isBlank()) {
+                ApplicationManager.getApplication().invokeLater {
+                    browser?.cefBrowser?.executeJavaScript(
+                        "if(window.__bojMarkFailed) __bojMarkFailed('$submissionId');",
+                        browser?.cefBrowser?.url ?: "", 0
+                    )
+                }
+                return@fetchSourceCode
+            }
+
+            com.boj.intellij.github.GitHubUploadService.upload(
+                project = project,
+                submitResult = SubmitResult(
+                    submissionId = submissionId,
+                    problemId = problemId,
+                    result = "맞았습니다!!",
+                    memory = memory,
+                    time = time,
+                    language = language,
+                    codeLength = codeLength,
+                ),
+                sourceCode = sourceCode,
+                title = title,
+                extension = extension,
+                tierLevel = tierLevel,
+                submittedAt = submittedAt,
+                problemData = problemData,
+                onSuccess = {
+                    settings.markSubmissionUploaded(submissionId)
+                    ApplicationManager.getApplication().invokeLater {
+                        browser?.cefBrowser?.executeJavaScript(
+                            "if(window.__bojMarkUploaded) __bojMarkUploaded('$submissionId');",
+                            browser?.cefBrowser?.url ?: "", 0
+                        )
+                    }
+                },
+                onFailure = {
+                    ApplicationManager.getApplication().invokeLater {
+                        browser?.cefBrowser?.executeJavaScript(
+                            "if(window.__bojMarkFailed) __bojMarkFailed('$submissionId');",
+                            browser?.cefBrowser?.url ?: "", 0
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    private fun fetchSourceCode(submissionId: String, callback: (String) -> Unit) {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val cookies = collectCookies("https://www.acmicpc.net")
+                val request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://www.acmicpc.net/source/download/$submissionId"))
+                    .header("Cookie", cookies)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .header("Referer", "https://www.acmicpc.net/status")
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .timeout(java.time.Duration.ofSeconds(15))
+                    .GET()
+                    .build()
+                val response = java.net.http.HttpClient.newBuilder()
+                    .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                    .build()
+                    .send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+                callback(response.body() ?: "")
+            } catch (e: Exception) {
+                callback("")
+            }
+        }
+    }
+
+    private fun collectCookies(url: String): String {
+        val cookies = mutableListOf<String>()
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val cookieManager = org.cef.network.CefCookieManager.getGlobalManager()
+        if (cookieManager == null) return ""
+        cookieManager.visitUrlCookies(url, true) { cookie, _, total, _ ->
+            cookies.add("${cookie.name}=${cookie.value}")
+            if (cookies.size >= total) latch.countDown()
+            true
+        }
+        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        return cookies.joinToString("; ")
+    }
+
+    private fun extractJsonValue(json: String, key: String): String? {
+        val pattern = """"${Regex.escape(key)}"\s*:\s*"((?:[^"\\]|\\.)*)"""".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)
+            ?.replace("\\\"", "\"")
+            ?.replace("\\\\", "\\")
+            ?.replace("\\n", "\n")
+            ?.replace("\\r", "\r")
+            ?.replace("\\t", "\t")
+    }
+
+    private fun extractJsonInt(json: String, key: String): Int? {
+        val pattern = """"${Regex.escape(key)}"\s*:\s*(\d+)""".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    private fun injectGitHubUploadButtons() {
+        if (browser == null || uploadJsQuery == null) return
+
+        val settings = com.boj.intellij.settings.BojSettings.getInstance()
+        if (!settings.state.githubEnabled) return
+
+        val uploadedIds = settings.state.uploadedSubmissionIds
+        val uploadedJson = uploadedIds.joinToString(",") { "\"$it\"" }
+        val callbackJs = uploadJsQuery!!.inject("json")
+
+        val js = """
+        (function() {
+            if (window.__bojGitHubInjected) return;
+            window.__bojGitHubInjected = true;
+            window.__bojUploaded = new Set([$uploadedJson]);
+
+            function injectButtons() {
+                var table = document.getElementById('status-table');
+                if (!table) return;
+                var rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function(row) {
+                    var cells = row.querySelectorAll('td');
+                    if (cells.length < 8) return;
+                    var resultCell = cells[3];
+                    var resultSpan = resultCell.querySelector('.result-text');
+                    if (!resultSpan) return;
+                    if (resultSpan.textContent.trim() !== '\ub9de\uc558\uc2b5\ub2c8\ub2e4!!') return;
+                    if (row.querySelector('.boj-gh-btn, .boj-gh-check')) return;
+
+                    var submissionId = cells[0].textContent.trim();
+                    if (window.__bojUploaded.has(submissionId)) {
+                        var check = document.createElement('span');
+                        check.className = 'boj-gh-check';
+                        check.textContent = ' \u2705';
+                        check.title = 'GitHub\uc5d0 \uc5c5\ub85c\ub4dc\ub428';
+                        resultSpan.parentNode.appendChild(check);
+                    } else {
+                        var btn = document.createElement('button');
+                        btn.className = 'boj-gh-btn';
+                        btn.setAttribute('data-sid', submissionId);
+                        btn.textContent = '\u2B06 GitHub';
+                        btn.style.cssText = 'margin-left:8px;padding:1px 6px;font-size:11px;cursor:pointer;border:1px solid #ccc;border-radius:3px;background:#f8f8f8;';
+                        btn.onclick = function() { __bojUpload(submissionId, cells); };
+                        resultSpan.parentNode.appendChild(btn);
+                    }
+                });
+            }
+
+            window.__bojUpload = function(submissionId, cells) {
+                var btn = document.querySelector('.boj-gh-btn[data-sid="' + submissionId + '"]');
+                if (btn) { btn.textContent = '\uc5c5\ub85c\ub4dc \uc911...'; btn.disabled = true; }
+
+                var problemLink = cells[2].querySelector('a');
+                var problemId = problemLink ? problemLink.textContent.trim() : '';
+                var langCell = cells[6];
+                var langLink = langCell.querySelector('a');
+                var language = langLink ? langLink.textContent.trim() : langCell.firstChild ? langCell.firstChild.textContent.trim() : langCell.textContent.trim();
+                var memory = cells[4] ? cells[4].textContent.trim() : '';
+                var time = cells[5] ? cells[5].textContent.trim() : '';
+                var codeLength = cells[7] ? cells[7].textContent.trim() : '';
+
+                // 티어 SVG 추출
+                var tierImg = cells[2].querySelector('img[src*="tier/"]');
+                var tierLevel = 0;
+                if (tierImg) {
+                    var tierMatch = tierImg.src.match(/tier\/(\d+)\.svg/);
+                    if (tierMatch) tierLevel = parseInt(tierMatch[1], 10);
+                }
+
+                // 제출 일자 추출
+                var submittedAt = '';
+                var timeCell = cells[8];
+                if (timeCell) {
+                    var timeEl = timeCell.querySelector('a.real-time-update') || timeCell.querySelector('a');
+                    if (timeEl) {
+                        submittedAt = timeEl.getAttribute('data-original-title')
+                            || timeEl.getAttribute('title')
+                            || timeEl.textContent.trim();
+                    } else {
+                        submittedAt = timeCell.textContent.trim();
+                    }
+                }
+
+                var json = JSON.stringify({
+                    submissionId: submissionId,
+                    problemId: problemId,
+                    language: language,
+                    memory: memory,
+                    time: time,
+                    codeLength: codeLength,
+                    tierLevel: tierLevel,
+                    submittedAt: submittedAt
+                });
+                $callbackJs
+            };
+
+            window.__bojMarkUploaded = function(sid) {
+                window.__bojUploaded.add(sid);
+                var btn = document.querySelector('.boj-gh-btn[data-sid="' + sid + '"]');
+                if (btn) {
+                    var check = document.createElement('span');
+                    check.className = 'boj-gh-check';
+                    check.textContent = ' \u2705';
+                    check.title = 'GitHub\uc5d0 \uc5c5\ub85c\ub4dc\ub428';
+                    btn.parentNode.replaceChild(check, btn);
+                }
+            };
+
+            window.__bojMarkFailed = function(sid) {
+                var btn = document.querySelector('.boj-gh-btn[data-sid="' + sid + '"]');
+                if (btn) {
+                    btn.textContent = '\u274C \uc2e4\ud328';
+                    btn.style.color = 'red';
+                    btn.disabled = false;
+                    setTimeout(function() {
+                        btn.textContent = '\u2B06 GitHub';
+                        btn.style.color = '';
+                    }, 3000);
+                }
+            };
+
+            var table = document.getElementById('status-table');
+            if (table) {
+                var observer = new MutationObserver(function() { injectButtons(); });
+                observer.observe(table, { childList: true, subtree: true });
+            }
+
+            injectButtons();
+        })();
+        """.trimIndent()
+
+        browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
+    }
+
     override fun dispose() {
+        uploadJsQuery?.let { Disposer.dispose(it) }
         browser?.let(Disposer::dispose)
     }
 }
