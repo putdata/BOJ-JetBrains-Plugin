@@ -62,4 +62,28 @@ class HtmlToMarkdownConverterTest {
     fun `converts nested inline formatting`() {
         assertEquals("**bold *and italic***", HtmlToMarkdownConverter.convert("<strong>bold <em>and italic</em></strong>"))
     }
+
+    @Test
+    fun `converts unordered list`() {
+        val html = "<ul><li>Apple</li><li>Banana</li></ul>"
+        assertEquals("- Apple\n- Banana", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts ordered list`() {
+        val html = "<ol><li>First</li><li>Second</li><li>Third</li></ol>"
+        assertEquals("1. First\n2. Second\n3. Third", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts nested list`() {
+        val html = "<ul><li>Parent<ul><li>Child</li></ul></li></ul>"
+        assertEquals("- Parent\n  - Child", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `list inside paragraph`() {
+        val html = "<p>Before list</p><ul><li>Item</li></ul><p>After list</p>"
+        assertEquals("Before list\n\n- Item\n\nAfter list", HtmlToMarkdownConverter.convert(html))
+    }
 }

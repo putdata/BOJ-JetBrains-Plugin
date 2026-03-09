@@ -15,13 +15,13 @@ object HtmlToMarkdownConverter {
         return postProcess(sb.toString())
     }
 
-    private fun convertChildren(parent: Node, sb: StringBuilder) {
+    private fun convertChildren(parent: Node, sb: StringBuilder, listDepth: Int = 0) {
         for (child in parent.childNodes()) {
-            convertNode(child, sb)
+            convertNode(child, sb, listDepth)
         }
     }
 
-    private fun convertNode(node: Node, sb: StringBuilder) {
+    private fun convertNode(node: Node, sb: StringBuilder, listDepth: Int = 0) {
         when (node) {
             is TextNode -> {
                 val text = node.wholeText
@@ -29,40 +29,64 @@ object HtmlToMarkdownConverter {
                     sb.append(text.replace(Regex("\\s+"), " "))
                 }
             }
-            is Element -> convertElement(node, sb)
+            is Element -> convertElement(node, sb, listDepth)
         }
     }
 
-    private fun convertElement(element: Element, sb: StringBuilder) {
+    private fun convertElement(element: Element, sb: StringBuilder, listDepth: Int = 0) {
         when (element.tagName().lowercase()) {
             "p", "div" -> {
                 ensureBlankLine(sb)
-                convertChildren(element, sb)
+                convertChildren(element, sb, listDepth)
                 ensureBlankLine(sb)
             }
             "br" -> sb.append("\n")
             "strong", "b" -> {
                 sb.append("**")
-                convertChildren(element, sb)
+                convertChildren(element, sb, listDepth)
                 sb.append("**")
             }
             "em", "i" -> {
                 sb.append("*")
-                convertChildren(element, sb)
+                convertChildren(element, sb, listDepth)
                 sb.append("*")
             }
             "sup" -> {
                 sb.append("<sup>")
-                convertChildren(element, sb)
+                convertChildren(element, sb, listDepth)
                 sb.append("</sup>")
             }
             "sub" -> {
                 sb.append("<sub>")
-                convertChildren(element, sb)
+                convertChildren(element, sb, listDepth)
                 sb.append("</sub>")
             }
-            "span" -> convertChildren(element, sb)
-            else -> convertChildren(element, sb)
+            "ul" -> {
+                if (listDepth == 0) ensureBlankLine(sb)
+                else if (sb.isNotEmpty() && !sb.endsWith('\n')) sb.append("\n")
+                val items = element.children().filter { it.tagName().lowercase() == "li" }
+                items.forEachIndexed { index, li ->
+                    val indent = "  ".repeat(listDepth)
+                    sb.append("${indent}- ")
+                    convertChildren(li, sb, listDepth + 1)
+                    if (index < items.size - 1) sb.append("\n")
+                }
+                if (listDepth == 0) ensureBlankLine(sb)
+            }
+            "ol" -> {
+                if (listDepth == 0) ensureBlankLine(sb)
+                else if (sb.isNotEmpty() && !sb.endsWith('\n')) sb.append("\n")
+                val items = element.children().filter { it.tagName().lowercase() == "li" }
+                items.forEachIndexed { index, li ->
+                    val indent = "  ".repeat(listDepth)
+                    sb.append("${indent}${index + 1}. ")
+                    convertChildren(li, sb, listDepth + 1)
+                    if (index < items.size - 1) sb.append("\n")
+                }
+                if (listDepth == 0) ensureBlankLine(sb)
+            }
+            "span" -> convertChildren(element, sb, listDepth)
+            else -> convertChildren(element, sb, listDepth)
         }
     }
 
