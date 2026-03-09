@@ -88,4 +88,22 @@ class GitHubApiClientTest {
         // content 필드가 없어야 함 (sha로 참조)
         assertTrue(!body.contains("\"content\""))
     }
+
+    @Test
+    fun `parseUsername extracts login from user response`() {
+        val json = """{"login":"putdata","id":12345,"name":"Test User"}"""
+        assertEquals("putdata", GitHubApiClient.parseUsername(json))
+    }
+
+    @Test
+    fun `parseRepoList extracts full_name list from repos response`() {
+        val json = """[{"full_name":"putdata/boj","private":false},{"full_name":"putdata/algo","private":true}]"""
+        val repos = GitHubApiClient.parseRepoList(json)
+        assertEquals(listOf("putdata/boj", "putdata/algo"), repos)
+    }
+
+    @Test
+    fun `parseRepoList returns empty list for empty array`() {
+        assertEquals(emptyList<String>(), GitHubApiClient.parseRepoList("[]"))
+    }
 }

@@ -171,6 +171,31 @@ class GitHubApiClient(
     }
 
     /**
+     * 인증된 사용자 정보를 조회한다.
+     */
+    fun getUser(): String? {
+        val response = sendGet("https://api.github.com/user")
+        return parseUsername(response)
+    }
+
+    /**
+     * 인증된 사용자의 저장소 목록을 조회한다.
+     */
+    fun listRepos(): List<String> {
+        val allRepos = mutableListOf<String>()
+        var page = 1
+        while (true) {
+            val response = sendGet("https://api.github.com/user/repos?per_page=100&page=$page&sort=updated&affiliation=owner,collaborator")
+            val repos = parseRepoList(response)
+            if (repos.isEmpty()) break
+            allRepos.addAll(repos)
+            page++
+            if (repos.size < 100) break
+        }
+        return allRepos
+    }
+
+    /**
      * 토큰 유효성과 리포지토리 접근 권한을 확인한다.
      */
     fun testConnection(repo: String): ConnectionTestResult {
@@ -275,6 +300,16 @@ class GitHubApiClient(
         private fun parseTreeSha(commitJson: String): String? {
             val treePattern = """"tree"\s*:\s*\{[^}]*"sha"\s*:\s*"([^"]+)"""".toRegex()
             return treePattern.find(commitJson)?.groupValues?.get(1)
+        }
+
+        fun parseUsername(json: String): String? {
+            val pattern = """"login"\s*:\s*"([^"]+)"""".toRegex()
+            return pattern.find(json)?.groupValues?.get(1)
+        }
+
+        fun parseRepoList(json: String): List<String> {
+            val pattern = """"full_name"\s*:\s*"([^"]+)"""".toRegex()
+            return pattern.findAll(json).map { it.groupValues[1] }.toList()
         }
 
         private fun parseJsonValue(json: String, key: String): String? {
