@@ -241,7 +241,10 @@ class GitHubApiClient(
         private val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(15)
 
         fun buildApiUrl(repo: String, path: String): String {
-            return "https://api.github.com/repos/$repo/contents/$path"
+            val encodedPath = path.split("/").joinToString("/") {
+                java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+            }
+            return "https://api.github.com/repos/$repo/contents/$encodedPath"
         }
 
         fun buildUploadRequestBody(

@@ -12,7 +12,7 @@ import java.time.Duration
  */
 object GitHubDeviceFlowAuth {
 
-    private const val CLIENT_ID = "Iv23lilkydYwKorZcjw5"
+    private const val CLIENT_ID = "Ov23liZsWVqw5sEV2fBk"
     private const val SCOPE = "repo"
 
     private val httpClient: HttpClient = HttpClient.newBuilder()

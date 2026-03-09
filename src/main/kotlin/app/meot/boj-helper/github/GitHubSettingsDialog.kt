@@ -51,7 +51,7 @@ class GitHubSettingsDialog(
 
         updateAuthUI()
         if (GitHubCredentialStore.hasToken()) {
-            loadRepoList()
+            verifyTokenAndLoadRepos()
         }
     }
 
@@ -192,13 +192,17 @@ class GitHubSettingsDialog(
                     // UI 스레드에서 코드 안내
                     ApplicationManager.getApplication().invokeLater({
                         authStatusLabel.text = "코드: ${deviceCode.userCode} — 브라우저에서 입력하세요"
-                        authStatusLabel.foreground = java.awt.Color.BLUE
+                        authStatusLabel.foreground = com.intellij.util.ui.JBUI.CurrentTheme.Link.Foreground.ENABLED
+                        authStatusLabel.font = authStatusLabel.font.deriveFont(authStatusLabel.font.size2D + 4f)
                     }, ModalityState.any())
 
-                    // 폴링
+                    // 폴링 (최대 15분)
                     val interval = (deviceCode.interval * 1000).toLong()
-                    while (true) {
+                    val maxAttempts = (15 * 60 * 1000L) / interval
+                    var attempts = 0L
+                    while (attempts < maxAttempts) {
                         Thread.sleep(interval)
+                        attempts++
                         val token = GitHubDeviceFlowAuth.pollForToken(deviceCode.deviceCode)
                         if (token != null) {
                             GitHubCredentialStore.setToken(token)
@@ -215,11 +219,14 @@ class GitHubSettingsDialog(
                             return@executeOnPooledThread
                         }
                     }
+                    throw RuntimeException("인증 시간이 초과되었습니다. 다시 시도해주세요.")
                 } catch (e: Exception) {
                     ApplicationManager.getApplication().invokeLater({
                         authStatusLabel.text = "인증 실패: ${e.message}"
                         authStatusLabel.foreground = java.awt.Color.RED
+                        authStatusLabel.font = authStatusLabel.font.deriveFont(authStatusLabel.font.size2D - 4f)
                         loginButton.isEnabled = true
+                        loginButton.isVisible = true
                     }, ModalityState.any())
                 }
             }
@@ -231,6 +238,38 @@ class GitHubSettingsDialog(
             GitHubCredentialStore.clearAll()
             repoComboBox.removeAllItems()
             updateAuthUI()
+        }
+    }
+
+    private fun verifyTokenAndLoadRepos() {
+        val token = GitHubCredentialStore.getToken() ?: return
+        authStatusLabel.text = "토큰 검증 중..."
+        authStatusLabel.foreground = java.awt.Color.GRAY
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val client = GitHubApiClient(token)
+                val username = client.getUser()
+                if (username != null) {
+                    GitHubCredentialStore.setUsername(username)
+                    ApplicationManager.getApplication().invokeLater({
+                        updateAuthUI()
+                        loadRepoList()
+                    }, ModalityState.any())
+                } else {
+                    // 토큰이 유효하지 않음
+                    GitHubCredentialStore.clearAll()
+                    ApplicationManager.getApplication().invokeLater({
+                        updateAuthUI()
+                    }, ModalityState.any())
+                }
+            } catch (e: Exception) {
+                // 토큰이 만료/무효
+                GitHubCredentialStore.clearAll()
+                ApplicationManager.getApplication().invokeLater({
+                    updateAuthUI()
+                }, ModalityState.any())
+            }
         }
     }
 

@@ -45,15 +45,13 @@ object GitHubUploadService {
     ) {
         val token = GitHubCredentialStore.getToken()
         if (token.isNullOrBlank()) {
-            notifyError(project, "GitHub 토큰이 설정되지 않았습니다. GitHub 설정을 확인해주세요.")
-            return
+            throw RuntimeException("GitHub 토큰이 설정되지 않았습니다. GitHub 설정을 확인해주세요.")
         }
 
         val settings = BojSettings.getInstance()
         val repo = settings.state.githubRepo
         if (repo.isBlank()) {
-            notifyError(project, "GitHub 리포지토리가 설정되지 않았습니다. GitHub 설정을 확인해주세요.")
-            return
+            throw RuntimeException("GitHub 리포지토리가 설정되지 않았습니다. GitHub 설정을 확인해주세요.")
         }
 
         val branch = settings.state.githubBranch
@@ -89,6 +87,8 @@ object GitHubUploadService {
             )
             if (result.success) {
                 notifySuccess(project, submitResult.problemId, title, null)
+            } else {
+                throw RuntimeException("다중 파일 업로드에 실패했습니다")
             }
         } else {
             // 기존 단일 파일 업로드
@@ -103,6 +103,8 @@ object GitHubUploadService {
             )
             if (result.success) {
                 notifySuccess(project, submitResult.problemId, title, result.htmlUrl)
+            } else {
+                throw RuntimeException("파일 업로드에 실패했습니다")
             }
         }
     }
