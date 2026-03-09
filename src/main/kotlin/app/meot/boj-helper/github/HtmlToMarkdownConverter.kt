@@ -41,6 +41,26 @@ object HtmlToMarkdownConverter {
                 ensureBlankLine(sb)
             }
             "br" -> sb.append("\n")
+            "strong", "b" -> {
+                sb.append("**")
+                convertChildren(element, sb)
+                sb.append("**")
+            }
+            "em", "i" -> {
+                sb.append("*")
+                convertChildren(element, sb)
+                sb.append("*")
+            }
+            "sup" -> {
+                sb.append("<sup>")
+                convertChildren(element, sb)
+                sb.append("</sup>")
+            }
+            "sub" -> {
+                sb.append("<sub>")
+                convertChildren(element, sb)
+                sb.append("</sub>")
+            }
             "span" -> convertChildren(element, sb)
             else -> convertChildren(element, sb)
         }

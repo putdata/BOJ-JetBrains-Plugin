@@ -30,7 +30,36 @@ class HtmlToMarkdownConverterTest {
     }
 
     @Test
+    fun `converts span as inline element`() {
+        val html = "<p>Hello <span>world</span></p>"
+        assertEquals("Hello world", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
     fun `returns empty string for empty html`() {
         assertEquals("", HtmlToMarkdownConverter.convert(""))
+    }
+
+    @Test
+    fun `converts strong and b to bold`() {
+        assertEquals("**bold**", HtmlToMarkdownConverter.convert("<strong>bold</strong>"))
+        assertEquals("**bold**", HtmlToMarkdownConverter.convert("<b>bold</b>"))
+    }
+
+    @Test
+    fun `converts em and i to italic`() {
+        assertEquals("*italic*", HtmlToMarkdownConverter.convert("<em>italic</em>"))
+        assertEquals("*italic*", HtmlToMarkdownConverter.convert("<i>italic</i>"))
+    }
+
+    @Test
+    fun `preserves sup and sub as html`() {
+        assertEquals("x<sup>2</sup>", HtmlToMarkdownConverter.convert("x<sup>2</sup>"))
+        assertEquals("a<sub>i</sub>", HtmlToMarkdownConverter.convert("a<sub>i</sub>"))
+    }
+
+    @Test
+    fun `converts nested inline formatting`() {
+        assertEquals("**bold *and italic***", HtmlToMarkdownConverter.convert("<strong>bold <em>and italic</em></strong>"))
     }
 }
