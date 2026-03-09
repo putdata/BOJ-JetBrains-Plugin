@@ -55,6 +55,7 @@ intellijPlatform {
             org.intellij.markdown.html.HtmlGenerator(md, tree, flavour)
                 .generateHtml()
                 .replace(Regex("</?body>"), "")
+                .replace(Regex("<h1>[^<]*</h1>"), "")
                 .replace(
                     Regex("""src="(docs/screenshots/[^"]+)""""),
                     """src="$githubRawBase/$1""""
