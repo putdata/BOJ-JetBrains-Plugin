@@ -85,6 +85,17 @@ object HtmlToMarkdownConverter {
                 }
                 if (listDepth == 0) ensureBlankLine(sb)
             }
+            "a" -> {
+                val href = element.attr("href")
+                sb.append("[")
+                convertChildren(element, sb, listDepth)
+                sb.append("](${href})")
+            }
+            "img" -> {
+                val src = element.attr("src")
+                val alt = element.attr("alt")
+                sb.append("![${alt}](${src})")
+            }
             "span" -> convertChildren(element, sb, listDepth)
             else -> convertChildren(element, sb, listDepth)
         }

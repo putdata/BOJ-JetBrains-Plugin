@@ -86,4 +86,22 @@ class HtmlToMarkdownConverterTest {
         val html = "<p>Before list</p><ul><li>Item</li></ul><p>After list</p>"
         assertEquals("Before list\n\n- Item\n\nAfter list", HtmlToMarkdownConverter.convert(html))
     }
+
+    @Test
+    fun `converts anchor to markdown link`() {
+        val html = """<a href="https://example.com">Link text</a>"""
+        assertEquals("[Link text](https://example.com)", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts img to markdown image`() {
+        val html = """<img src="https://upload.acmicpc.net/img.png" alt="diagram">"""
+        assertEquals("![diagram](https://upload.acmicpc.net/img.png)", HtmlToMarkdownConverter.convert(html))
+    }
+
+    @Test
+    fun `converts img without alt`() {
+        val html = """<img src="https://upload.acmicpc.net/img.png">"""
+        assertEquals("![](https://upload.acmicpc.net/img.png)", HtmlToMarkdownConverter.convert(html))
+    }
 }
