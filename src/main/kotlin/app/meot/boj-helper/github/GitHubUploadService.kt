@@ -86,7 +86,7 @@ object GitHubUploadService {
                 ),
             )
             if (result.success) {
-                notifySuccess(project, submitResult.problemId, title, null)
+                notifySuccess(project, submitResult.problemId, title, result.htmlUrl)
             } else {
                 throw RuntimeException("다중 파일 업로드에 실패했습니다")
             }
@@ -130,24 +130,23 @@ object GitHubUploadService {
     }
 
     private fun notifySuccess(project: Project, problemId: String, title: String, htmlUrl: String?) {
-        val message = if (htmlUrl != null) {
-            "[$problemId] $title 업로드 완료 (<a href=\"$htmlUrl\">GitHub에서 보기</a>)"
-        } else {
-            "[$problemId] $title 업로드 완료"
-        }
-        notify(project, message, NotificationType.INFORMATION)
+        val message = "[$problemId] $title 업로드 완료"
+        notify(project, message, NotificationType.INFORMATION, htmlUrl)
     }
 
     private fun notifyError(project: Project, message: String) {
         notify(project, "GitHub 업로드 실패: $message", NotificationType.WARNING)
     }
 
-    private fun notify(project: Project, content: String, type: NotificationType) {
+    private fun notify(project: Project, content: String, type: NotificationType, browseUrl: String? = null) {
         ApplicationManager.getApplication().invokeLater {
-            NotificationGroupManager.getInstance()
+            val notification = NotificationGroupManager.getInstance()
                 .getNotificationGroup("BOJ Helper")
                 .createNotification(content, type)
-                .notify(project)
+            if (browseUrl != null) {
+                notification.addAction(com.intellij.notification.BrowseNotificationAction("GitHub에서 보기", browseUrl))
+            }
+            notification.notify(project)
         }
     }
 }

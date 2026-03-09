@@ -115,12 +115,13 @@ class GitHubApiClient(
         val newCommitResponse = sendPost(newCommitUrl, commitBody)
         val newCommitSha = parseJsonValue(newCommitResponse, "sha")
             ?: throw GitHubApiException(0, "새 커밋을 생성할 수 없습니다")
+        val htmlUrl = parseHtmlUrl(newCommitResponse)
 
         // 4. 브랜치 포인터 이동
         val updateRefBody = """{"sha":"$newCommitSha"}"""
         sendPatch(refUrl, updateRefBody)
 
-        return UploadResult(success = true)
+        return UploadResult(success = true, htmlUrl = htmlUrl)
     }
 
     private fun sendGet(url: String): String {
