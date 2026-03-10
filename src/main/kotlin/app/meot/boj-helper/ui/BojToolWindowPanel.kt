@@ -727,7 +727,12 @@ class BojToolWindowPanel(
                 problemId = dialog.getProblemNumber(),
                 extension = ext,
             )
-            val content = settings.state.boilerplateTemplates[ext] ?: ""
+            val rawContent = settings.state.boilerplateTemplates[ext] ?: ""
+            val content = com.boj.intellij.boilerplate.BoilerplateService.resolveContent(
+                template = rawContent,
+                problemId = dialog.getProblemNumber(),
+                extension = ext,
+            )
             val targetFile = File(selectedDir, relativePath)
 
             if (targetFile.exists()) {
