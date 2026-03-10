@@ -242,8 +242,13 @@ class SettingsPanel(
         val textArea = JTextArea(currentTemplate, 15, 50)
         textArea.font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12)
         val scrollPane = JScrollPane(textArea)
+        val hintLabel = JLabel("사용 가능한 변수: {problemId}, {title}, {ext}")
+        hintLabel.font = hintLabel.font.deriveFont(java.awt.Font.ITALIC, 11f)
+        val panel = JPanel(java.awt.BorderLayout(0, 4))
+        panel.add(scrollPane, java.awt.BorderLayout.CENTER)
+        panel.add(hintLabel, java.awt.BorderLayout.SOUTH)
         val result = JOptionPane.showConfirmDialog(
-            this, scrollPane, "$extension 템플릿 편집",
+            this, panel, "$extension 템플릿 편집",
             JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,
         )
         return if (result == JOptionPane.OK_OPTION) textArea.text else null
