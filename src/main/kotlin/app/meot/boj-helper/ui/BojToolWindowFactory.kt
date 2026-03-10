@@ -28,6 +28,11 @@ class BojToolWindowFactory : ToolWindowFactory, DumbAware {
         generalContent.setDisposer(generalPanel)
         toolWindow.contentManager.addContent(generalContent)
 
+        val settingsPanel = SettingsPanel(project)
+        val settingsContent = contentFactory.createContent(settingsPanel, "설정", false)
+        settingsContent.setDisposer(settingsPanel)
+        toolWindow.contentManager.addContent(settingsContent)
+
         toolWindow.contentManager.addContentManagerListener(object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
                 if (event.operation == ContentManagerEvent.ContentOperation.add) {
@@ -35,6 +40,7 @@ class BojToolWindowFactory : ToolWindowFactory, DumbAware {
                         is BojToolWindowPanel -> component.onTabSelected()
                         is GeneralTestPanel -> component.onTabSelected()
                         is BojSubmitPanel -> component.onTabSelected()
+                        is SettingsPanel -> component.onTabSelected()
                     }
                 }
             }
