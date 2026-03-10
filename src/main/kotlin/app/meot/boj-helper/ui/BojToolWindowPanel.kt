@@ -94,6 +94,7 @@ class BojToolWindowPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
         onStop = { handleStop() },
         onCopyForSubmit = { handleCopyForSubmit() },
+        onCreateBoilerplate = { handleCreateBoilerplate() },
     )
 
     @Volatile
@@ -709,6 +710,63 @@ class BojToolWindowPanel(
 
         val selection = java.awt.datatransfer.StringSelection(transformed)
         java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
+    }
+
+    private fun handleCreateBoilerplate() {
+        val selectedDir = resolveSelectedDirectory()
+        val dialog = com.boj.intellij.boilerplate.CreateBoilerplateDialog(
+            project = project,
+            baseDir = selectedDir,
+            defaultProblemNumber = currentProblemNumber,
+        )
+        if (dialog.showAndGet()) {
+            val settings = BojSettings.getInstance()
+            val ext = dialog.getSelectedExtension()
+            val relativePath = com.boj.intellij.boilerplate.BoilerplateService.resolvePath(
+                template = settings.state.boilerplatePathTemplate,
+                problemId = dialog.getProblemNumber(),
+                extension = ext,
+            )
+            val content = settings.state.boilerplateTemplates[ext] ?: ""
+            val targetFile = File(selectedDir, relativePath)
+
+            if (targetFile.exists()) {
+                val overwrite = javax.swing.JOptionPane.showConfirmDialog(
+                    this,
+                    "파일이 이미 존재합니다:\n${targetFile.path}\n\n덮어쓰시겠습니까?",
+                    "파일 존재",
+                    javax.swing.JOptionPane.YES_NO_OPTION,
+                )
+                if (overwrite != javax.swing.JOptionPane.YES_OPTION) return
+            }
+
+            val result = com.boj.intellij.boilerplate.BoilerplateService.createFile(
+                baseDir = selectedDir,
+                relativePath = relativePath,
+                content = content,
+                overwrite = true,
+            )
+            if (result.success && result.filePath != null) {
+                val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                    .refreshAndFindFileByIoFile(result.filePath)
+                if (virtualFile != null) {
+                    FileEditorManager.getInstance(project).openFile(virtualFile, true)
+                }
+            }
+        }
+    }
+
+    private fun resolveSelectedDirectory(): File {
+        val selectedFiles = runCatching {
+            val dataContext = com.intellij.ide.DataManager.getInstance().getDataContext(this)
+            val vf = com.intellij.openapi.actionSystem.PlatformDataKeys.VIRTUAL_FILE.getData(dataContext)
+            vf?.let { file ->
+                if (file.isDirectory) File(file.path)
+                else file.parent?.let { File(it.path) }
+            }
+        }.getOrNull()
+
+        return selectedFiles ?: File(project.basePath ?: ".")
     }
 
     private fun saveActiveEditorDocument() {
