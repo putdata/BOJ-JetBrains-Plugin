@@ -98,6 +98,39 @@ class BoilerplateServiceTest {
     }
 
     @Test
+    fun `resolves content template with variables`() {
+        val result = BoilerplateService.resolveContent(
+            template = "// Problem: {problemId} - {title}\npublic class Main {}",
+            problemId = "1000",
+            extension = "java",
+            title = "A+B",
+        )
+        assertEquals("// Problem: 1000 - A+B\npublic class Main {}", result)
+    }
+
+    @Test
+    fun `resolves content without variables returns as-is`() {
+        val template = "public class Main {}"
+        val result = BoilerplateService.resolveContent(
+            template = template,
+            problemId = "1000",
+            extension = "java",
+        )
+        assertEquals(template, result)
+    }
+
+    @Test
+    fun `resolves content with modifier`() {
+        val result = BoilerplateService.resolveContent(
+            template = "// {title:u}",
+            problemId = "1000",
+            extension = "java",
+            title = "hello",
+        )
+        assertEquals("// HELLO", result)
+    }
+
+    @Test
     fun `returns available extensions from templates`() {
         val templates = mapOf("java" to "...", "py" to "...", "cpp" to "...")
         val extensions = BoilerplateService.getAvailableExtensions(templates)

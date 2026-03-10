@@ -11,18 +11,32 @@ data class CreateFileResult(
 
 object BoilerplateService {
 
+    private fun buildVariables(
+        problemId: String,
+        extension: String,
+        title: String = "",
+    ): Map<String, String> = mapOf(
+        "problemId" to problemId,
+        "ext" to extension,
+        "title" to title,
+    )
+
     fun resolvePath(
         template: String,
         problemId: String,
         extension: String,
         title: String = "",
     ): String {
-        val variables = mapOf(
-            "problemId" to problemId,
-            "ext" to extension,
-            "title" to title,
-        )
-        return TemplateEngine.render(template, variables)
+        return TemplateEngine.render(template, buildVariables(problemId, extension, title))
+    }
+
+    fun resolveContent(
+        template: String,
+        problemId: String,
+        extension: String,
+        title: String = "",
+    ): String {
+        return TemplateEngine.render(template, buildVariables(problemId, extension, title))
     }
 
     fun createFile(
