@@ -45,8 +45,8 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         }
     }
     private val textArea = JTextArea().apply {
-        lineWrap = true
-        wrapStyleWord = true
+        lineWrap = false
+        wrapStyleWord = false
         font = com.intellij.util.ui.JBUI.Fonts.create(Font.MONOSPACED, 12)
         border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
     }

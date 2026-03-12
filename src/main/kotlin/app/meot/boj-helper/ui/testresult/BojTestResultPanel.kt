@@ -97,7 +97,7 @@ class BojTestResultPanel(
             add(memoPanel, BorderLayout.CENTER)
         }
 
-        val mainSplitter = JBSplitter(false, 0.5f)
+        val mainSplitter = JBSplitter(false, 0.6f)
         mainSplitter.firstComponent = splitter
         mainSplitter.secondComponent = memoWrapper
         mainSplitter.border = BorderFactory.createEmptyBorder()
