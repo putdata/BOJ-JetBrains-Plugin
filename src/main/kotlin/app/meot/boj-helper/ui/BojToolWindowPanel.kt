@@ -19,6 +19,7 @@ import com.boj.intellij.service.TestResultService
 import com.boj.intellij.ui.common.AddTestCaseDialog
 import com.boj.intellij.ui.common.TestCaseDialogConfig
 import com.boj.intellij.ui.custom.ManageCustomTestCasesDialog
+import com.boj.intellij.ui.memo.MemoPanel
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.boj.intellij.ui.testresult.PanelMode
 import com.intellij.openapi.Disposable
@@ -332,6 +333,7 @@ class BojToolWindowPanel(
             val customKeys = customTestCaseRepository.load(currentProblemNumber ?: "")
                 .keys.map { TestCaseKey.Custom(it) }
             testResultPanel?.populateEntries(problem.samplePairs.size, customKeys)
+            findMemoPanel()?.setProblemId(currentProblemNumber)
         }
     }
 
@@ -566,6 +568,10 @@ class BojToolWindowPanel(
         }.getOrNull()
     }
 
+    private fun findMemoPanel(): MemoPanel? {
+        return findTestResultPanel()?.getMemoPanel()
+    }
+
     fun onTabSelected() {
         findTestResultPanel()?.setMode(PanelMode.BOJ)
         autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
@@ -589,8 +595,10 @@ class BojToolWindowPanel(
             val customKeys = customTestCaseRepository.load(currentProblemNumber ?: "")
                 .keys.map { TestCaseKey.Custom(it) }
             panel.populateEntries(problem.samplePairs.size, customKeys)
+            findMemoPanel()?.setProblemId(currentProblemNumber)
         } else {
             panel.populateEntries(0, emptyList())
+            findMemoPanel()?.setProblemId(null)
         }
     }
 
