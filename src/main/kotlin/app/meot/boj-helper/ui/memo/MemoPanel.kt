@@ -7,9 +7,13 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.editor.Document
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.event.DocumentEvent
+import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.tabs.TabInfo
 import com.intellij.ui.tabs.TabsListener
 import com.intellij.ui.tabs.impl.JBTabsImpl
@@ -17,13 +21,9 @@ import java.awt.BorderLayout
 import java.awt.Font
 import java.awt.event.KeyEvent
 import java.io.File
-import javax.swing.BorderFactory
 import javax.swing.KeyStroke
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JTextArea
-import javax.swing.event.DocumentEvent
-import javax.swing.event.DocumentListener
 
 class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
@@ -44,12 +44,10 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         } catch (_: Exception) {
         }
     }
-    private val textArea = JTextArea().apply {
-        lineWrap = false
-        wrapStyleWord = false
-        font = com.intellij.util.ui.JBUI.Fonts.create(Font.MONOSPACED, 12)
-        border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
-    }
+    private var currentEditor: Editor? = null
+    private val editorPanel = JPanel(BorderLayout())
+    // problemId -> (memoName -> Document)
+    private val documents = mutableMapOf<String, MutableMap<String, Document>>()
 
     private var currentProblemId: String? = null
 
@@ -103,7 +101,7 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         topPanel.add(toolbar.component, BorderLayout.EAST)
 
         add(topPanel, BorderLayout.NORTH)
-        add(JBScrollPane(textArea), BorderLayout.CENTER)
+        add(editorPanel, BorderLayout.CENTER)
 
         tabs.addListener(object : TabsListener {
             override fun selectionChanged(oldSelection: TabInfo?, newSelection: TabInfo?) {
@@ -112,22 +110,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
                 }
             }
         })
-
-        textArea.document.addDocumentListener(object : DocumentListener {
-            override fun insertUpdate(e: DocumentEvent) = onTextChanged()
-            override fun removeUpdate(e: DocumentEvent) = onTextChanged()
-            override fun changedUpdate(e: DocumentEvent) = onTextChanged()
-        })
-
-        object : DumbAwareAction() {
-            override fun actionPerformed(e: AnActionEvent) = saveCurrentMemo()
-        }.registerCustomShortcutSet(
-            com.intellij.openapi.actionSystem.CustomShortcutSet(
-                KeyStroke.getKeyStroke(KeyEvent.VK_S, java.awt.Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx),
-            ),
-            textArea,
-            this,
-        )
 
         tabs.setPopupGroup(
             DefaultActionGroup().apply {
@@ -163,8 +145,7 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
 
         val problemId = currentProblemId
         if (problemId == null) {
-            textArea.text = ""
-            textArea.isEnabled = false
+            releaseCurrentEditor()
             updatingText = false
             updateEmptyState()
             return
@@ -174,6 +155,8 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         if (existingOrder != null) {
             for (memoName in existingOrder) {
                 val dirty = dirtyFlags[problemId]?.contains(memoName) == true
+                val content = cache[problemId]?.get(memoName) ?: ""
+                getOrCreateDocument(problemId, memoName, content)
                 addTab(memoName, dirty)
             }
         } else {
@@ -183,13 +166,16 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
                 tabOrder[problemId] = mutableListOf(autoName)
                 cache[problemId] = mutableMapOf(autoName to "")
                 dirtyFlags[problemId] = mutableSetOf()
+                getOrCreateDocument(problemId, autoName, "")
                 addTab(autoName, false)
             } else {
                 val order = mutableListOf<String>()
                 val memoCache = mutableMapOf<String, String>()
                 for (name in memoNames) {
                     order.add(name)
-                    memoCache[name] = memoRepository.load(problemId, name)
+                    val content = memoRepository.load(problemId, name)
+                    memoCache[name] = content
+                    getOrCreateDocument(problemId, name, content)
                     addTab(name, false)
                 }
                 tabOrder[problemId] = order
@@ -197,8 +183,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
                 dirtyFlags[problemId] = mutableSetOf()
             }
         }
-
-        textArea.isEnabled = true
 
         val allTabs = tabs.tabs
         if (allTabs.isNotEmpty()) {
@@ -243,11 +227,9 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val selected = tabs.selectedInfo ?: return
         val memoName = selected.`object` as? String ?: return
 
-        val cachedContent = cache[problemId]?.get(memoName)
-        updatingText = true
-        textArea.text = cachedContent ?: ""
-        textArea.caretPosition = 0
-        updatingText = false
+        val content = cache[problemId]?.get(memoName) ?: ""
+        val document = getOrCreateDocument(problemId, memoName, content)
+        swapEditor(document)
     }
 
     private fun onTextChanged() {
@@ -256,7 +238,8 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val selected = tabs.selectedInfo ?: return
         val memoName = selected.`object` as? String ?: return
 
-        cache.getOrPut(problemId) { mutableMapOf() }[memoName] = textArea.text
+        val text = currentEditor?.document?.text ?: return
+        cache.getOrPut(problemId) { mutableMapOf() }[memoName] = text
 
         val dirty = dirtyFlags.getOrPut(problemId) { mutableSetOf() }
         if (memoName !in dirty) {
@@ -270,7 +253,8 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val selected = tabs.selectedInfo ?: return
         val memoName = selected.`object` as? String ?: return
 
-        cache.getOrPut(problemId) { mutableMapOf() }[memoName] = textArea.text
+        val text = currentEditor?.document?.text ?: return
+        cache.getOrPut(problemId) { mutableMapOf() }[memoName] = text
     }
 
     private fun saveCurrentMemo() {
@@ -278,7 +262,7 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val selected = tabs.selectedInfo ?: return
         val memoName = selected.`object` as? String ?: return
 
-        val content = textArea.text
+        val content = currentEditor?.document?.text ?: return
         memoRepository.save(problemId, memoName, content)
         cache.getOrPut(problemId) { mutableMapOf() }[memoName] = content
         dirtyFlags[problemId]?.remove(memoName)
@@ -294,6 +278,7 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
 
         tabOrder.getOrPut(problemId) { mutableListOf() }.add(newName)
         cache.getOrPut(problemId) { mutableMapOf() }[newName] = ""
+        getOrCreateDocument(problemId, newName, "")
         val tabInfo = addTab(newName, false)
         tabs.select(tabInfo, false)
     }
@@ -321,6 +306,12 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val memoCache = cache[problemId] ?: return
         val content = memoCache.remove(oldName) ?: ""
         memoCache[newName] = content
+
+        val problemDocs = documents[problemId]
+        if (problemDocs != null) {
+            val doc = problemDocs.remove(oldName)
+            if (doc != null) problemDocs[newName] = doc
+        }
 
         val dirty = dirtyFlags.getOrPut(problemId) { mutableSetOf() }
         val wasDirty = dirty.remove(oldName)
@@ -355,6 +346,7 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val tabIndex = tabs.tabs.indexOf(tabInfo)
         tabOrder[problemId]?.removeAt(tabIndex)
         cache[problemId]?.remove(memoName)
+        documents[problemId]?.remove(memoName)
         dirtyFlags[problemId]?.remove(memoName)
 
         memoRepository.delete(problemId, memoName)
@@ -373,11 +365,70 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         }
     }
 
+    private fun createEditor(document: Document): Editor {
+        val editor = EditorFactory.getInstance().createEditor(document, project)
+        editor.settings.apply {
+            isLineNumbersShown = false
+            isFoldingOutlineShown = false
+            isLineMarkerAreaShown = false
+            additionalLinesCount = 0
+            additionalColumnsCount = 0
+            isRightMarginShown = false
+            isCaretRowShown = false
+            isUseSoftWraps = false
+        }
+        editor.colorsScheme.apply {
+            editorFontName = Font.MONOSPACED
+            editorFontSize = 12
+        }
+        return editor
+    }
+
+    private fun getOrCreateDocument(problemId: String, memoName: String, content: String): Document {
+        val problemDocs = documents.getOrPut(problemId) { mutableMapOf() }
+        return problemDocs.getOrPut(memoName) {
+            val doc = EditorFactory.getInstance().createDocument(content)
+            doc.addDocumentListener(object : DocumentListener {
+                override fun documentChanged(event: DocumentEvent) {
+                    if (!updatingText) onTextChanged()
+                }
+            })
+            doc
+        }
+    }
+
+    private fun swapEditor(document: Document) {
+        currentEditor?.let { EditorFactory.getInstance().releaseEditor(it) }
+        val editor = createEditor(document)
+        currentEditor = editor
+        editorPanel.removeAll()
+        editorPanel.add(editor.component, BorderLayout.CENTER)
+        editorPanel.revalidate()
+        editorPanel.repaint()
+
+        // Ctrl+S 단축키를 새 에디터에 등록
+        object : DumbAwareAction() {
+            override fun actionPerformed(e: AnActionEvent) = saveCurrentMemo()
+        }.registerCustomShortcutSet(
+            com.intellij.openapi.actionSystem.CustomShortcutSet(
+                KeyStroke.getKeyStroke(KeyEvent.VK_S, java.awt.Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx),
+            ),
+            editor.component,
+            this,
+        )
+    }
+
+    private fun releaseCurrentEditor() {
+        currentEditor?.let { EditorFactory.getInstance().releaseEditor(it) }
+        currentEditor = null
+        editorPanel.removeAll()
+        editorPanel.revalidate()
+        editorPanel.repaint()
+    }
+
     private fun updateEmptyState() {
-        val hasProblem = currentProblemId != null
-        textArea.isEnabled = hasProblem
-        if (!hasProblem) {
-            textArea.text = ""
+        if (currentProblemId == null) {
+            releaseCurrentEditor()
         }
     }
 
@@ -410,5 +461,7 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
     }
 
     override fun dispose() {
+        currentEditor?.let { EditorFactory.getInstance().releaseEditor(it) }
+        currentEditor = null
     }
 }
