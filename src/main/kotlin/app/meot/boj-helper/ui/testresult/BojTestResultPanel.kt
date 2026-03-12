@@ -1,5 +1,6 @@
 package com.boj.intellij.ui.testresult
 
+import com.boj.intellij.ui.memo.MemoPanel
 import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
@@ -60,6 +61,7 @@ class BojTestResultPanel(
 
     private var isRunning = false
 
+    private val memoPanel = MemoPanel(project)
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
     private val resultList = JBList(listModel)
@@ -87,7 +89,11 @@ class BojTestResultPanel(
         splitter.secondComponent = buildDetailPanel()
         splitter.border = BorderFactory.createEmptyBorder(0, 4, 4, 4)
 
-        setContent(splitter)
+        val mainSplitter = JBSplitter(false, 0.5f)
+        mainSplitter.firstComponent = splitter
+        mainSplitter.secondComponent = memoPanel
+        mainSplitter.border = BorderFactory.createEmptyBorder()
+        setContent(mainSplitter)
 
         resultList.cellRenderer = TestResultCellRenderer()
         resultList.addListSelectionListener { event ->
@@ -476,6 +482,8 @@ class BojTestResultPanel(
             e.presentation.isVisible = currentMode == PanelMode.BOJ
         }
     }
+
+    fun getMemoPanel(): MemoPanel = memoPanel
 
     override fun dispose() {}
 }
