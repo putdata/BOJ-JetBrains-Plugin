@@ -84,7 +84,7 @@ class BojTestResultPanel(
         headerToolbar = toolbar
         setToolbar(toolbar.component)
 
-        val splitter = JBSplitter(false, 0.15f)
+        val splitter = JBSplitter(false, 0.25f)
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
         splitter.border = BorderFactory.createEmptyBorder(0, 4, 4, 6)
@@ -228,21 +228,21 @@ class BojTestResultPanel(
 
         // 레이블 행 (gridy=0)
         c.gridy = 0
-        c.gridx = 0; c.weightx = 0.25; c.insets = Insets(0, 0, 4, 4)
+        c.gridx = 0; c.weightx = 1.0; c.insets = Insets(0, 0, 4, 4)
         panel.add(createSectionLabel("예제 입력"), c)
-        c.gridx = 1; c.weightx = 0.25; c.insets = Insets(0, 4, 4, 4)
+        c.gridx = 1; c.weightx = 1.0; c.insets = Insets(0, 4, 4, 4)
         panel.add(createSectionLabel("기대 출력"), c)
-        c.gridx = 2; c.weightx = 0.5; c.insets = Insets(0, 4, 4, 0)
+        c.gridx = 2; c.weightx = 1.0; c.insets = Insets(0, 4, 4, 0)
         panel.add(createSectionLabel("실행 결과"), c)
 
         // 컨텐츠 행 (gridy=1) - 3칸 가로 배치
         // preferredSize를 (0,0)으로 설정하여 텍스트 내용에 관계없이 weightx 비율로만 너비 결정
         c.gridy = 1; c.weighty = 1.0
-        c.gridx = 0; c.weightx = 0.25; c.insets = Insets(0, 0, 0, 4)
+        c.gridx = 0; c.weightx = 1.0; c.insets = Insets(0, 0, 0, 4)
         panel.add(JBScrollPane(inputArea).apply { preferredSize = java.awt.Dimension(0, 0) }, c)
-        c.gridx = 1; c.weightx = 0.25; c.insets = Insets(0, 4, 0, 4)
+        c.gridx = 1; c.weightx = 1.0; c.insets = Insets(0, 4, 0, 4)
         panel.add(JBScrollPane(expectedArea).apply { preferredSize = java.awt.Dimension(0, 0) }, c)
-        c.gridx = 2; c.weightx = 0.5; c.insets = Insets(0, 4, 0, 0)
+        c.gridx = 2; c.weightx = 1.0; c.insets = Insets(0, 4, 0, 0)
         panel.add(JBScrollPane(actualArea).apply { preferredSize = java.awt.Dimension(0, 0) }, c)
 
         return panel
