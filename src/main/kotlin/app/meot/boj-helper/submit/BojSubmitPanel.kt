@@ -599,12 +599,17 @@ class BojSubmitPanel(
             window.__bojUploaded = new Set([$uploadedJson]);
 
             function injectButtons() {
+                var userLink = document.querySelector('a.username');
+                if (!userLink) return;
+                var myUsername = userLink.textContent.trim();
                 var table = document.getElementById('status-table');
                 if (!table) return;
                 var rows = table.querySelectorAll('tbody tr');
                 rows.forEach(function(row) {
                     var cells = row.querySelectorAll('td');
                     if (cells.length < 8) return;
+                    var submitter = cells[1] ? cells[1].textContent.trim() : '';
+                    if (submitter !== myUsername) return;
                     var resultCell = cells[3];
                     var resultSpan = resultCell.querySelector('.result-text');
                     if (!resultSpan) return;

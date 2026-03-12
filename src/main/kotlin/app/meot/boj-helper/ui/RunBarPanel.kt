@@ -24,6 +24,7 @@ class RunBarPanel(
     private val onRunAll: (command: String) -> Unit,
     private val onStop: () -> Unit = {},
     private val onCopyForSubmit: () -> Unit = {},
+    private val onCreateBoilerplate: (() -> Unit)? = null,
     private val showCopyButton: Boolean = true,
 ) : JPanel(BorderLayout()) {
 
@@ -67,18 +68,36 @@ class RunBarPanel(
 
         add(leftPanel, BorderLayout.WEST)
 
-        if (showCopyButton) {
-            copyButton.apply {
-                toolTipText = "백준 제출용 코드 복사 (Java: 클래스명→Main)"
-                isBorderPainted = false
-                isContentAreaFilled = false
-                cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-                addActionListener {
-                    onCopyForSubmit()
-                    showCopyFeedback()
+        if (showCopyButton || onCreateBoilerplate != null) {
+            val rightPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0))
+            rightPanel.isOpaque = false
+
+            if (onCreateBoilerplate != null) {
+                val createButton = JButton("파일 생성", AllIcons.Actions.AddFile).apply {
+                    toolTipText = "보일러플레이트 파일 생성"
+                    isBorderPainted = false
+                    isContentAreaFilled = false
+                    cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                    addActionListener { onCreateBoilerplate() }
                 }
+                rightPanel.add(createButton)
             }
-            add(copyButton, BorderLayout.EAST)
+
+            if (showCopyButton) {
+                copyButton.apply {
+                    toolTipText = "백준 제출용 코드 복사 (Java: 클래스명→Main)"
+                    isBorderPainted = false
+                    isContentAreaFilled = false
+                    cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                    addActionListener {
+                        onCopyForSubmit()
+                        showCopyFeedback()
+                    }
+                }
+                rightPanel.add(copyButton)
+            }
+
+            add(rightPanel, BorderLayout.EAST)
         }
     }
 
