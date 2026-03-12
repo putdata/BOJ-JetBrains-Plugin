@@ -4,11 +4,11 @@ import com.boj.intellij.common.MemoRepository
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Disposer
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.tabs.TabInfo
 import com.intellij.ui.tabs.TabsListener
@@ -34,7 +34,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         MemoRepository(File(basePath, ".boj"))
     }
 
-    private val tabDisposable = Disposer.newDisposable("MemoPanel-tabs")
     private val tabs = JBTabsImpl(project).apply {
         try {
             val ctor = com.intellij.ui.tabs.UiDecorator.UiDecoration::class.java
@@ -190,22 +189,22 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val title = if (dirty) "$memoName *" else memoName
         val tabInfo = TabInfo(JPanel()).setText(title)
         tabInfo.setObject(memoName)
-        val closeAction = com.intellij.openapi.actionSystem.DefaultActionGroup().apply {
-            add(object : com.intellij.openapi.project.DumbAwareAction(
+        val closeAction = DefaultActionGroup().apply {
+            add(object : DumbAwareAction(
                 "Close",
                 "메모 삭제",
-                com.intellij.icons.AllIcons.Actions.CloseDarkGrey,
+                AllIcons.Actions.CloseDarkGrey,
             ) {
-                override fun update(e: com.intellij.openapi.actionSystem.AnActionEvent) {
+                override fun update(e: AnActionEvent) {
                     e.presentation.isEnabledAndVisible = true
                 }
 
-                override fun actionPerformed(e: com.intellij.openapi.actionSystem.AnActionEvent) {
+                override fun actionPerformed(e: AnActionEvent) {
                     deleteTab(tabInfo)
                 }
             })
         }
-        tabInfo.setTabLabelActions(closeAction, com.intellij.openapi.actionSystem.ActionPlaces.EDITOR_TAB)
+        tabInfo.setTabLabelActions(closeAction, ActionPlaces.EDITOR_TAB)
         tabs.addTab(tabInfo)
         return tabInfo
     }
@@ -417,6 +416,5 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
     }
 
     override fun dispose() {
-        Disposer.dispose(tabDisposable)
     }
 }
