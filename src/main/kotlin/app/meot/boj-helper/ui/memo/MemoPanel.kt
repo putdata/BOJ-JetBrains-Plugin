@@ -15,8 +15,10 @@ import com.intellij.ui.tabs.TabsListener
 import com.intellij.ui.tabs.impl.JBTabsImpl
 import java.awt.BorderLayout
 import java.awt.Font
+import java.awt.event.KeyEvent
 import java.io.File
 import javax.swing.BorderFactory
+import javax.swing.KeyStroke
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JTextArea
@@ -116,6 +118,16 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
             override fun removeUpdate(e: DocumentEvent) = onTextChanged()
             override fun changedUpdate(e: DocumentEvent) = onTextChanged()
         })
+
+        object : DumbAwareAction() {
+            override fun actionPerformed(e: AnActionEvent) = saveCurrentMemo()
+        }.registerCustomShortcutSet(
+            com.intellij.openapi.actionSystem.CustomShortcutSet(
+                KeyStroke.getKeyStroke(KeyEvent.VK_S, java.awt.Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx),
+            ),
+            textArea,
+            this,
+        )
 
         tabs.setPopupGroup(
             DefaultActionGroup().apply {
