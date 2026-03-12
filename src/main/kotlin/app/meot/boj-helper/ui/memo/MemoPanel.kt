@@ -1,9 +1,13 @@
 package com.boj.intellij.ui.memo
 
 import com.boj.intellij.common.MemoRepository
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.tabs.TabInfo
+import com.intellij.ui.tabs.TabsListener
+import com.intellij.ui.tabs.impl.JBTabsImpl
 import java.awt.BorderLayout
 import java.awt.Font
 import java.awt.event.MouseAdapter
@@ -19,14 +23,15 @@ import javax.swing.JTextArea
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
+class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
     private val memoRepository: MemoRepository by lazy {
         val basePath = project.basePath ?: throw IllegalStateException("Project basePath is null")
         MemoRepository(File(basePath, ".boj"))
     }
 
-    private val tabbedPane = JBTabbedPane()
+    private val tabDisposable = Disposer.newDisposable("MemoPanel-tabs")
+    private val tabs = JBTabsImpl(project)
     private val textArea = JTextArea().apply {
         lineWrap = true
         wrapStyleWord = true
@@ -52,8 +57,10 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
         addButton.toolTipText = "새 메모 추가"
         addButton.addActionListener { addNewMemo() }
 
-        topPanel.add(tabbedPane, BorderLayout.CENTER)
-        topPanel.add(addButton, BorderLayout.EAST)
+        topPanel.add(tabs.component, BorderLayout.CENTER)
+        val buttonWrapper = JPanel(BorderLayout())
+        buttonWrapper.add(addButton, BorderLayout.NORTH)
+        topPanel.add(buttonWrapper, BorderLayout.EAST)
 
         val bottomPanel = JPanel(BorderLayout())
         bottomPanel.border = BorderFactory.createEmptyBorder(4, 0, 0, 0)
@@ -63,11 +70,13 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
         add(JBScrollPane(textArea), BorderLayout.CENTER)
         add(bottomPanel, BorderLayout.SOUTH)
 
-        tabbedPane.addChangeListener {
-            if (!updatingText) {
-                onTabSelected()
+        tabs.addListener(object : TabsListener {
+            override fun selectionChanged(oldSelection: TabInfo?, newSelection: TabInfo?) {
+                if (!updatingText && newSelection != null) {
+                    onTabSelected()
+                }
             }
-        }
+        })
 
         textArea.document.addDocumentListener(object : DocumentListener {
             override fun insertUpdate(e: DocumentEvent) = onTextChanged()
@@ -83,16 +92,14 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     fun setProblemId(problemId: String?) {
-        // 이전 문제의 현재 탭 내용을 캐시에 저장
         cacheCurrentTabContent()
-
         currentProblemId = problemId
         loadMemos()
     }
 
     private fun loadMemos() {
         updatingText = true
-        tabbedPane.removeAll()
+        removeAllTabs()
 
         val problemId = currentProblemId
         if (problemId == null) {
@@ -106,29 +113,25 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         val existingOrder = tabOrder[problemId]
         if (existingOrder != null) {
-            // 캐시에서 복원 (탭 순서 유지)
             for (memoName in existingOrder) {
                 val dirty = dirtyFlags[problemId]?.contains(memoName) == true
-                val tabTitle = if (dirty) "$memoName *" else memoName
-                tabbedPane.addTab(tabTitle, null)
+                addTab(memoName, dirty)
             }
         } else {
-            // 파일에서 로드
             val memoNames = memoRepository.listMemos(problemId)
             if (memoNames.isEmpty()) {
-                // 메모 없으면 자동 생성
                 val autoName = memoRepository.nextAutoName(problemId)
                 tabOrder[problemId] = mutableListOf(autoName)
                 cache[problemId] = mutableMapOf(autoName to "")
                 dirtyFlags[problemId] = mutableSetOf()
-                tabbedPane.addTab(autoName, null)
+                addTab(autoName, false)
             } else {
                 val order = mutableListOf<String>()
                 val memoCache = mutableMapOf<String, String>()
                 for (name in memoNames) {
                     order.add(name)
                     memoCache[name] = memoRepository.load(problemId, name)
-                    tabbedPane.addTab(name, null)
+                    addTab(name, false)
                 }
                 tabOrder[problemId] = order
                 cache[problemId] = memoCache
@@ -139,8 +142,9 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
         textArea.isEnabled = true
         saveButton.isEnabled = true
 
-        if (tabbedPane.tabCount > 0) {
-            tabbedPane.selectedIndex = 0
+        val allTabs = tabs.tabs
+        if (allTabs.isNotEmpty()) {
+            tabs.select(allTabs.first(), false)
             onTabSelected()
         }
 
@@ -148,12 +152,38 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
         updateEmptyState()
     }
 
+    private fun addTab(memoName: String, dirty: Boolean): TabInfo {
+        val title = if (dirty) "$memoName *" else memoName
+        val tabInfo = TabInfo(JPanel()).setText(title)
+        tabInfo.setObject(memoName)
+        val closeAction = com.intellij.openapi.actionSystem.DefaultActionGroup().apply {
+            add(object : com.intellij.openapi.project.DumbAwareAction(
+                "Close",
+                "메모 삭제",
+                com.intellij.icons.AllIcons.Actions.CloseDarkGrey,
+            ) {
+                override fun update(e: com.intellij.openapi.actionSystem.AnActionEvent) {
+                    e.presentation.isEnabledAndVisible = true
+                }
+
+                override fun actionPerformed(e: com.intellij.openapi.actionSystem.AnActionEvent) {
+                    deleteTab(tabInfo)
+                }
+            })
+        }
+        tabInfo.setTabLabelActions(closeAction, com.intellij.openapi.actionSystem.ActionPlaces.EDITOR_TAB)
+        tabs.addTab(tabInfo)
+        return tabInfo
+    }
+
+    private fun removeAllTabs() {
+        tabs.tabs.toList().forEach { tabs.removeTab(it) }
+    }
+
     private fun onTabSelected() {
         val problemId = currentProblemId ?: return
-        val selectedIndex = tabbedPane.selectedIndex
-        if (selectedIndex < 0) return
-
-        val memoName = getMemoNameAt(problemId, selectedIndex) ?: return
+        val selected = tabs.selectedInfo ?: return
+        val memoName = selected.`object` as? String ?: return
 
         val cachedContent = cache[problemId]?.get(memoName)
         updatingText = true
@@ -165,41 +195,36 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
     private fun onTextChanged() {
         if (updatingText) return
         val problemId = currentProblemId ?: return
-        val selectedIndex = tabbedPane.selectedIndex
-        if (selectedIndex < 0) return
-        val memoName = getMemoNameAt(problemId, selectedIndex) ?: return
+        val selected = tabs.selectedInfo ?: return
+        val memoName = selected.`object` as? String ?: return
 
-        // 캐시 업데이트
         cache.getOrPut(problemId) { mutableMapOf() }[memoName] = textArea.text
 
-        // dirty 마킹
         val dirty = dirtyFlags.getOrPut(problemId) { mutableSetOf() }
         if (memoName !in dirty) {
             dirty.add(memoName)
-            tabbedPane.setTitleAt(selectedIndex, "$memoName *")
+            selected.setText("$memoName *")
         }
     }
 
     private fun cacheCurrentTabContent() {
         val problemId = currentProblemId ?: return
-        val selectedIndex = tabbedPane.selectedIndex
-        if (selectedIndex < 0) return
-        val memoName = getMemoNameAt(problemId, selectedIndex) ?: return
+        val selected = tabs.selectedInfo ?: return
+        val memoName = selected.`object` as? String ?: return
 
         cache.getOrPut(problemId) { mutableMapOf() }[memoName] = textArea.text
     }
 
     private fun saveCurrentMemo() {
         val problemId = currentProblemId ?: return
-        val selectedIndex = tabbedPane.selectedIndex
-        if (selectedIndex < 0) return
-        val memoName = getMemoNameAt(problemId, selectedIndex) ?: return
+        val selected = tabs.selectedInfo ?: return
+        val memoName = selected.`object` as? String ?: return
 
         val content = textArea.text
         memoRepository.save(problemId, memoName, content)
         cache.getOrPut(problemId) { mutableMapOf() }[memoName] = content
         dirtyFlags[problemId]?.remove(memoName)
-        tabbedPane.setTitleAt(selectedIndex, memoName)
+        selected.setText(memoName)
     }
 
     private fun addNewMemo() {
@@ -211,18 +236,16 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         tabOrder.getOrPut(problemId) { mutableListOf() }.add(newName)
         cache.getOrPut(problemId) { mutableMapOf() }[newName] = ""
-        tabbedPane.addTab(newName, null)
-        tabbedPane.selectedIndex = tabbedPane.tabCount - 1
+        val tabInfo = addTab(newName, false)
+        tabs.select(tabInfo, false)
     }
 
     private fun wireTabMouseListener() {
-        tabbedPane.addMouseListener(object : MouseAdapter() {
+        tabs.component.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
-                val tabIndex = tabbedPane.indexAtLocation(e.x, e.y)
-                if (tabIndex < 0) return
-
                 if (e.clickCount == 2) {
-                    renameTab(tabIndex)
+                    val tabInfo = tabs.selectedInfo ?: return
+                    renameTab(tabInfo)
                 }
             }
 
@@ -237,25 +260,24 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun showTabContextMenu(e: MouseEvent) {
-        val tabIndex = tabbedPane.indexAtLocation(e.x, e.y)
-        if (tabIndex < 0) return
+        val tabInfo = tabs.selectedInfo ?: return
 
         val menu = JPopupMenu()
 
         val renameItem = JMenuItem("이름 변경")
-        renameItem.addActionListener { renameTab(tabIndex) }
+        renameItem.addActionListener { renameTab(tabInfo) }
         menu.add(renameItem)
 
         val deleteItem = JMenuItem("삭제")
-        deleteItem.addActionListener { deleteTab(tabIndex) }
+        deleteItem.addActionListener { deleteTab(tabInfo) }
         menu.add(deleteItem)
 
-        menu.show(tabbedPane, e.x, e.y)
+        menu.show(tabs.component, e.x, e.y)
     }
 
-    private fun renameTab(tabIndex: Int) {
+    private fun renameTab(tabInfo: TabInfo) {
         val problemId = currentProblemId ?: return
-        val oldName = getMemoNameAt(problemId, tabIndex) ?: return
+        val oldName = tabInfo.`object` as? String ?: return
 
         val newName = JOptionPane.showInputDialog(
             this,
@@ -269,34 +291,31 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         if (newName.isBlank() || newName == oldName) return
 
-        // tabOrder 업데이트 (같은 위치에서 이름만 교체)
         val order = tabOrder[problemId] ?: return
         val orderIndex = order.indexOf(oldName)
         if (orderIndex >= 0) order[orderIndex] = newName
 
-        // 캐시 업데이트
         val memoCache = cache[problemId] ?: return
         val content = memoCache.remove(oldName) ?: ""
         memoCache[newName] = content
 
-        // dirty 플래그 이전
-        val dirty = dirtyFlags[problemId]
-        val wasDirty = dirty?.remove(oldName) == true
+        val dirty = dirtyFlags.getOrPut(problemId) { mutableSetOf() }
+        val wasDirty = dirty.remove(oldName)
 
-        // 파일 이름 변경 (저장된 파일이 있을 때만)
         memoRepository.rename(problemId, oldName, newName)
 
-        // 탭 제목 업데이트
-        val tabTitle = if (wasDirty) {
-            dirty?.add(newName)
-            "$newName *"
-        } else newName
-        tabbedPane.setTitleAt(tabIndex, tabTitle)
+        tabInfo.setObject(newName)
+        if (wasDirty) {
+            dirty.add(newName)
+            tabInfo.setText("$newName *")
+        } else {
+            tabInfo.setText(newName)
+        }
     }
 
-    private fun deleteTab(tabIndex: Int) {
+    private fun deleteTab(tabInfo: TabInfo) {
         val problemId = currentProblemId ?: return
-        val memoName = getMemoNameAt(problemId, tabIndex) ?: return
+        val memoName = tabInfo.`object` as? String ?: return
 
         val confirm = JOptionPane.showConfirmDialog(
             this,
@@ -306,31 +325,25 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
         )
         if (confirm != JOptionPane.YES_OPTION) return
 
-        // tabOrder, 캐시, dirty에서 제거
+        val tabIndex = tabs.tabs.indexOf(tabInfo)
         tabOrder[problemId]?.removeAt(tabIndex)
         cache[problemId]?.remove(memoName)
         dirtyFlags[problemId]?.remove(memoName)
 
-        // 파일 삭제
         memoRepository.delete(problemId, memoName)
 
         updatingText = true
-        tabbedPane.removeTabAt(tabIndex)
+        tabs.removeTab(tabInfo)
         updatingText = false
 
-        // 탭이 없으면 새 메모 자동 생성
-        if (tabbedPane.tabCount == 0) {
+        if (tabs.tabCount == 0) {
             addNewMemo()
         } else {
-            val newIndex = minOf(tabIndex, tabbedPane.tabCount - 1)
-            tabbedPane.selectedIndex = newIndex
+            val allTabs = tabs.tabs
+            val newIndex = minOf(tabIndex, allTabs.size - 1)
+            tabs.select(allTabs[newIndex], false)
             onTabSelected()
         }
-    }
-
-    private fun getMemoNameAt(problemId: String, tabIndex: Int): String? {
-        val order = tabOrder[problemId] ?: return null
-        return order.getOrNull(tabIndex)
     }
 
     private fun updateEmptyState() {
@@ -340,5 +353,9 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()) {
         if (!hasProblem) {
             textArea.text = ""
         }
+    }
+
+    override fun dispose() {
+        Disposer.dispose(tabDisposable)
     }
 }

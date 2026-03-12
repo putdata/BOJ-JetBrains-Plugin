@@ -435,6 +435,7 @@ class BojToolWindowPanel(
             findTestResultPanel()?.setRunningState(true)
             findTestResultService()?.clearResults()
             findTestResultPanel()?.setAllRunning()
+            findMemoPanel()?.setProblemId(currentProblemNumber)
         }
 
         // 공식 예제 실행
@@ -511,7 +512,9 @@ class BojToolWindowPanel(
             .getInstance(project)
             .getToolWindow("BOJ 테스트")
         if (toolWindow != null && !toolWindow.isVisible) {
-            toolWindow.show()
+            toolWindow.show {
+                findMemoPanel()?.setProblemId(currentProblemNumber)
+            }
         }
     }
 
