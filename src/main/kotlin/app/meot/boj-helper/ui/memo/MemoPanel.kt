@@ -341,7 +341,8 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val memoName = tabInfo.`object` as? String ?: return
 
         val content = cache[problemId]?.get(memoName) ?: ""
-        if (content.isNotEmpty()) {
+        val diskContent = memoRepository.load(problemId, memoName)
+        if (content.isNotEmpty() || diskContent.isNotEmpty()) {
             val confirm = JOptionPane.showConfirmDialog(
                 this,
                 "'$memoName' 메모를 삭제하시겠습니까?",
