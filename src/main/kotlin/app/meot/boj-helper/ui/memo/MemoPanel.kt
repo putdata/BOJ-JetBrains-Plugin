@@ -1,6 +1,7 @@
 package com.boj.intellij.ui.memo
 
 import com.boj.intellij.common.MemoRepository
+import com.boj.intellij.settings.BojSettings
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
@@ -18,7 +19,7 @@ import com.intellij.ui.tabs.TabInfo
 import com.intellij.ui.tabs.TabsListener
 import com.intellij.ui.tabs.impl.JBTabsImpl
 import java.awt.BorderLayout
-import java.awt.Font
+import javax.swing.BorderFactory
 import java.awt.event.KeyEvent
 import java.io.File
 import javax.swing.KeyStroke
@@ -376,9 +377,25 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
             isCaretRowShown = false
             isUseSoftWraps = false
         }
-        editor.colorsScheme.apply {
-            editorFontName = Font.MONOSPACED
-            editorFontSize = 12
+        val ideFontSize = editor.colorsScheme.editorFontSize
+        val fontOffset = BojSettings.getInstance().state.memoFontSize
+        if (fontOffset != 0) {
+            editor.colorsScheme.editorFontSize = (ideFontSize + fontOffset).coerceIn(8, 40)
+        }
+        editor.contentComponent.border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
+        editor.contentComponent.addMouseWheelListener { e ->
+            if (e.isControlDown) {
+                e.consume()
+                val settings = BojSettings.getInstance().state
+                val delta = if (e.wheelRotation < 0) 4 else -4
+                val newOffset = settings.memoFontSize + delta
+                val newSize = (ideFontSize + newOffset).coerceIn(8, 40)
+                val clampedOffset = (newSize - ideFontSize).coerceAtLeast(0)
+                if (clampedOffset != settings.memoFontSize) {
+                    editor.colorsScheme.editorFontSize = newSize
+                    settings.memoFontSize = clampedOffset
+                }
+            }
         }
         return editor
     }
