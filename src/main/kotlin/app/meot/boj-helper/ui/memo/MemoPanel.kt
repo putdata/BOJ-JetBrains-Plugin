@@ -15,14 +15,10 @@ import com.intellij.ui.tabs.TabsListener
 import com.intellij.ui.tabs.impl.JBTabsImpl
 import java.awt.BorderLayout
 import java.awt.Font
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
 import java.io.File
 import javax.swing.BorderFactory
-import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JPopupMenu
 import javax.swing.JTextArea
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -121,7 +117,24 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
             override fun changedUpdate(e: DocumentEvent) = onTextChanged()
         })
 
-        wireTabMouseListener()
+        tabs.setPopupGroup(
+            DefaultActionGroup().apply {
+                add(object : DumbAwareAction("이름 변경") {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        val tabInfo = tabs.selectedInfo ?: return
+                        renameTab(tabInfo)
+                    }
+                })
+                add(object : DumbAwareAction("삭제") {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        val tabInfo = tabs.selectedInfo ?: return
+                        deleteTab(tabInfo)
+                    }
+                })
+            },
+            ActionPlaces.EDITOR_TAB,
+            false,
+        )
 
         updateEmptyState()
     }
@@ -271,41 +284,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         cache.getOrPut(problemId) { mutableMapOf() }[newName] = ""
         val tabInfo = addTab(newName, false)
         tabs.select(tabInfo, false)
-    }
-
-    private fun wireTabMouseListener() {
-        tabs.component.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent) {
-                if (e.clickCount == 2) {
-                    val tabInfo = tabs.selectedInfo ?: return
-                    renameTab(tabInfo)
-                }
-            }
-
-            override fun mousePressed(e: MouseEvent) {
-                if (e.isPopupTrigger) showTabContextMenu(e)
-            }
-
-            override fun mouseReleased(e: MouseEvent) {
-                if (e.isPopupTrigger) showTabContextMenu(e)
-            }
-        })
-    }
-
-    private fun showTabContextMenu(e: MouseEvent) {
-        val tabInfo = tabs.selectedInfo ?: return
-
-        val menu = JPopupMenu()
-
-        val renameItem = JMenuItem("이름 변경")
-        renameItem.addActionListener { renameTab(tabInfo) }
-        menu.add(renameItem)
-
-        val deleteItem = JMenuItem("삭제")
-        deleteItem.addActionListener { deleteTab(tabInfo) }
-        menu.add(deleteItem)
-
-        menu.show(tabs.component, e.x, e.y)
     }
 
     private fun renameTab(tabInfo: TabInfo) {
