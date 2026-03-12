@@ -165,7 +165,9 @@ class SettingsPanel(
 
     private fun updatePathPreview() {
         val sampleVars = mapOf("problemId" to "1000", "title" to "A+B", "ext" to "java")
-        pathPreviewLabel.text = "미리보기: ${TemplateEngine.render(pathTemplateField.text, sampleVars)}"
+        val relativePath = TemplateEngine.render(pathTemplateField.text, sampleVars)
+        val fullPath = project.basePath?.let { java.io.File(it, relativePath).path } ?: relativePath
+        pathPreviewLabel.text = "미리보기: $fullPath"
     }
 
     private fun wireEvents() {
