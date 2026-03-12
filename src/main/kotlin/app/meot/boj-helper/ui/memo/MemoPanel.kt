@@ -340,13 +340,16 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val problemId = currentProblemId ?: return
         val memoName = tabInfo.`object` as? String ?: return
 
-        val confirm = JOptionPane.showConfirmDialog(
-            this,
-            "'$memoName' 메모를 삭제하시겠습니까?",
-            "메모 삭제",
-            JOptionPane.YES_NO_OPTION,
-        )
-        if (confirm != JOptionPane.YES_OPTION) return
+        val content = cache[problemId]?.get(memoName) ?: ""
+        if (content.isNotEmpty()) {
+            val confirm = JOptionPane.showConfirmDialog(
+                this,
+                "'$memoName' 메모를 삭제하시겠습니까?",
+                "메모 삭제",
+                JOptionPane.YES_NO_OPTION,
+            )
+            if (confirm != JOptionPane.YES_OPTION) return
+        }
 
         val tabIndex = tabs.tabs.indexOf(tabInfo)
         tabOrder[problemId]?.removeAt(tabIndex)
