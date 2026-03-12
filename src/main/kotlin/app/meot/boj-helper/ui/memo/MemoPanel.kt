@@ -35,7 +35,18 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
     }
 
     private val tabDisposable = Disposer.newDisposable("MemoPanel-tabs")
-    private val tabs = JBTabsImpl(project)
+    private val tabs = JBTabsImpl(project).apply {
+        try {
+            val ctor = com.intellij.ui.tabs.UiDecorator.UiDecoration::class.java
+                .getConstructor(java.awt.Font::class.java, java.awt.Insets::class.java)
+            val insets = com.intellij.util.ui.JBUI.insets(8, 8)
+            val decoration = ctor.newInstance(null, insets)
+            setUiDecorator(object : com.intellij.ui.tabs.UiDecorator {
+                override fun getDecoration() = decoration as com.intellij.ui.tabs.UiDecorator.UiDecoration
+            })
+        } catch (_: Exception) {
+        }
+    }
     private val textArea = JTextArea().apply {
         lineWrap = true
         wrapStyleWord = true
@@ -64,8 +75,34 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         val toolbar = ActionManager.getInstance()
             .createActionToolbar("MemoToolbar", actionGroup, true)
         toolbar.targetComponent = this
+        toolbar.setMinimumButtonSize(com.intellij.util.ui.JBUI.size(22, 22))
 
-        topPanel.add(tabs.component, BorderLayout.CENTER)
+        val isNewUi = try {
+            Class.forName("com.intellij.ui.ExperimentalUI")
+                .getMethod("isNewUI")
+                .invoke(null) as Boolean
+        } catch (_: Exception) {
+            false
+        }
+
+        val tabsWrapper = object : JPanel(BorderLayout()) {
+            init { add(tabs.component, BorderLayout.CENTER) }
+            override fun getPreferredSize(): java.awt.Dimension {
+                val w = super.getPreferredSize().width
+                val toolbarHeight = toolbar.component.preferredSize.height
+                val headerHeight = try {
+                    val m = JBTabsImpl::class.java.getDeclaredMethod("computeHeaderPreferredSize", Int::class.java)
+                    m.isAccessible = true
+                    (m.invoke(tabs, 0) as java.awt.Dimension).height
+                } catch (_: Exception) {
+                    toolbarHeight + tabs.borderThickness
+                }
+                val h = if (isNewUi) toolbarHeight else headerHeight
+                return java.awt.Dimension(w, h)
+            }
+        }
+
+        topPanel.add(tabsWrapper, BorderLayout.CENTER)
         topPanel.add(toolbar.component, BorderLayout.EAST)
 
         add(topPanel, BorderLayout.NORTH)
