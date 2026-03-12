@@ -145,7 +145,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
 
         val problemId = currentProblemId
         if (problemId == null) {
-            releaseCurrentEditor()
             updatingText = false
             updateEmptyState()
             return
@@ -185,12 +184,12 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         }
 
         val allTabs = tabs.tabs
+        updatingText = false
         if (allTabs.isNotEmpty()) {
             tabs.select(allTabs.first(), false)
             onTabSelected()
         }
 
-        updatingText = false
         updateEmptyState()
     }
 
@@ -463,5 +462,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
     override fun dispose() {
         currentEditor?.let { EditorFactory.getInstance().releaseEditor(it) }
         currentEditor = null
+        documents.clear()
     }
 }

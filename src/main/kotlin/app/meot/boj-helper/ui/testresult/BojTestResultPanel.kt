@@ -61,7 +61,9 @@ class BojTestResultPanel(
 
     private var isRunning = false
 
-    private val memoPanel = MemoPanel(project)
+    private val memoPanel = MemoPanel(project).also {
+        com.intellij.openapi.util.Disposer.register(this, it)
+    }
     private val testResultService = TestResultService()
     private val listModel = DefaultListModel<TestResultEntry>()
     private val resultList = JBList(listModel)
