@@ -722,6 +722,7 @@ class BojToolWindowPanel(
         if (dialog.showAndGet()) {
             val settings = BojSettings.getInstance()
             val ext = dialog.getSelectedExtension()
+            settings.state.lastSelectedLanguage = ext
             val relativePath = com.boj.intellij.boilerplate.BoilerplateService.resolvePath(
                 template = settings.state.boilerplatePathTemplate,
                 problemId = dialog.getProblemNumber(),

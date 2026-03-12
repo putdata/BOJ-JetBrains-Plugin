@@ -27,6 +27,10 @@ class CreateBoilerplateDialog(
         title = "보일러플레이트 생성"
         val settings = BojSettings.getInstance()
         settings.state.boilerplateTemplates.keys.sorted().forEach { languageComboBox.addItem(it) }
+        val last = settings.state.lastSelectedLanguage
+        if (last.isNotBlank() && settings.state.boilerplateTemplates.containsKey(last)) {
+            languageComboBox.selectedItem = last
+        }
         init()
         updatePreview()
     }
