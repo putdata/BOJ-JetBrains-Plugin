@@ -1,7 +1,12 @@
 package com.boj.intellij.ui.memo
 
 import com.boj.intellij.common.MemoRepository
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.components.JBScrollPane
@@ -14,7 +19,6 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.io.File
 import javax.swing.BorderFactory
-import javax.swing.JButton
 import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.JPanel
@@ -38,7 +42,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         font = com.intellij.util.ui.JBUI.Fonts.create(Font.MONOSPACED, 12)
         border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
     }
-    private val saveButton = JButton("저장")
 
     private var currentProblemId: String? = null
 
@@ -53,22 +56,20 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
 
     init {
         val topPanel = JPanel(BorderLayout())
-        val addButton = JButton("+")
-        addButton.toolTipText = "새 메모 추가"
-        addButton.addActionListener { addNewMemo() }
+
+        val actionGroup = DefaultActionGroup().apply {
+            add(AddMemoAction())
+            add(SaveMemoAction())
+        }
+        val toolbar = ActionManager.getInstance()
+            .createActionToolbar("MemoToolbar", actionGroup, true)
+        toolbar.targetComponent = this
 
         topPanel.add(tabs.component, BorderLayout.CENTER)
-        val buttonWrapper = JPanel(BorderLayout())
-        buttonWrapper.add(addButton, BorderLayout.NORTH)
-        topPanel.add(buttonWrapper, BorderLayout.EAST)
-
-        val bottomPanel = JPanel(BorderLayout())
-        bottomPanel.border = BorderFactory.createEmptyBorder(4, 0, 0, 0)
-        bottomPanel.add(saveButton, BorderLayout.EAST)
+        topPanel.add(toolbar.component, BorderLayout.EAST)
 
         add(topPanel, BorderLayout.NORTH)
         add(JBScrollPane(textArea), BorderLayout.CENTER)
-        add(bottomPanel, BorderLayout.SOUTH)
 
         tabs.addListener(object : TabsListener {
             override fun selectionChanged(oldSelection: TabInfo?, newSelection: TabInfo?) {
@@ -83,8 +84,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
             override fun removeUpdate(e: DocumentEvent) = onTextChanged()
             override fun changedUpdate(e: DocumentEvent) = onTextChanged()
         })
-
-        saveButton.addActionListener { saveCurrentMemo() }
 
         wireTabMouseListener()
 
@@ -105,7 +104,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         if (problemId == null) {
             textArea.text = ""
             textArea.isEnabled = false
-            saveButton.isEnabled = false
             updatingText = false
             updateEmptyState()
             return
@@ -140,7 +138,6 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         }
 
         textArea.isEnabled = true
-        saveButton.isEnabled = true
 
         val allTabs = tabs.tabs
         if (allTabs.isNotEmpty()) {
@@ -349,9 +346,36 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
     private fun updateEmptyState() {
         val hasProblem = currentProblemId != null
         textArea.isEnabled = hasProblem
-        saveButton.isEnabled = hasProblem
         if (!hasProblem) {
             textArea.text = ""
+        }
+    }
+
+    private inner class AddMemoAction : DumbAwareAction(
+        "추가",
+        "새 메모 추가",
+        AllIcons.General.Add,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            addNewMemo()
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = currentProblemId != null
+        }
+    }
+
+    private inner class SaveMemoAction : DumbAwareAction(
+        "저장",
+        "현재 메모 저장",
+        AllIcons.Actions.MenuSaveall,
+    ) {
+        override fun actionPerformed(e: AnActionEvent) {
+            saveCurrentMemo()
+        }
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = currentProblemId != null
         }
     }
 

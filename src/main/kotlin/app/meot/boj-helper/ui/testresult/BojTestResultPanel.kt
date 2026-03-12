@@ -87,11 +87,19 @@ class BojTestResultPanel(
         val splitter = JBSplitter(false, 0.15f)
         splitter.firstComponent = buildListPanel()
         splitter.secondComponent = buildDetailPanel()
-        splitter.border = BorderFactory.createEmptyBorder(0, 4, 4, 4)
+        splitter.border = BorderFactory.createEmptyBorder(0, 4, 4, 6)
+
+        val memoWrapper = JPanel(BorderLayout()).apply {
+            border = com.intellij.util.ui.JBUI.Borders.compound(
+                com.intellij.util.ui.JBUI.Borders.customLine(JBColor.border(), 0, 1, 0, 0),
+                com.intellij.util.ui.JBUI.Borders.empty(0, 6, 4, 4),
+            )
+            add(memoPanel, BorderLayout.CENTER)
+        }
 
         val mainSplitter = JBSplitter(false, 0.5f)
         mainSplitter.firstComponent = splitter
-        mainSplitter.secondComponent = memoPanel
+        mainSplitter.secondComponent = memoWrapper
         mainSplitter.border = BorderFactory.createEmptyBorder()
         setContent(mainSplitter)
 
