@@ -25,6 +25,8 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var boilerplatePathTemplate: String = "{problemId}/Main.{ext}",
         var boilerplateTemplates: MutableMap<String, String> = DEFAULT_BOILERPLATE_TEMPLATES.toMutableMap(),
         var lastSelectedLanguage: String = "",
+        // 메모 설정
+        var memoFontSize: Int = 0,
     )
 
     private var myState = State()
