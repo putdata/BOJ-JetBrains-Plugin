@@ -15,9 +15,9 @@ import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
+import com.intellij.ui.tabs.JBTabs
 import com.intellij.ui.tabs.TabInfo
 import com.intellij.ui.tabs.TabsListener
-import com.intellij.ui.tabs.impl.JBTabsImpl
 import java.awt.BorderLayout
 import javax.swing.BorderFactory
 import java.awt.event.KeyEvent
@@ -33,17 +33,22 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
         MemoRepository(File(basePath, ".boj"))
     }
 
-    private val tabs = JBTabsImpl(project).apply {
+    private val tabs: JBTabs = run {
+        val instance = Class.forName("com.intellij.ui.tabs.impl.JBTabsImpl")
+            .getConstructor(Project::class.java)
+            .newInstance(project) as JBTabs
         try {
-            val ctor = com.intellij.ui.tabs.UiDecorator.UiDecoration::class.java
+            val decorationCtor = com.intellij.ui.tabs.UiDecorator.UiDecoration::class.java
                 .getConstructor(java.awt.Font::class.java, java.awt.Insets::class.java)
             val insets = com.intellij.util.ui.JBUI.insets(8, 8)
-            val decoration = ctor.newInstance(null, insets)
-            setUiDecorator(object : com.intellij.ui.tabs.UiDecorator {
-                override fun getDecoration() = decoration as com.intellij.ui.tabs.UiDecorator.UiDecoration
-            })
+            val decoration = decorationCtor.newInstance(null, insets)
+            instance.javaClass.getMethod("setUiDecorator", com.intellij.ui.tabs.UiDecorator::class.java)
+                .invoke(instance, object : com.intellij.ui.tabs.UiDecorator {
+                    override fun getDecoration() = decoration as com.intellij.ui.tabs.UiDecorator.UiDecoration
+                })
         } catch (_: Exception) {
         }
+        instance
     }
     private var currentEditor: Editor? = null
     private val editorPanel = JPanel(BorderLayout())
@@ -87,11 +92,14 @@ class MemoPanel(private val project: Project) : JPanel(BorderLayout()), Disposab
                 val w = super.getPreferredSize().width
                 val toolbarHeight = toolbar.component.preferredSize.height
                 val headerHeight = try {
-                    val m = JBTabsImpl::class.java.getDeclaredMethod("computeHeaderPreferredSize", Int::class.java)
+                    val m = tabs.javaClass.getDeclaredMethod("computeHeaderPreferredSize", Int::class.java)
                     m.isAccessible = true
                     (m.invoke(tabs, 0) as java.awt.Dimension).height
                 } catch (_: Exception) {
-                    toolbarHeight + tabs.borderThickness
+                    val bt = try {
+                        tabs.javaClass.getMethod("getBorderThickness").invoke(tabs) as Int
+                    } catch (_: Exception) { 0 }
+                    toolbarHeight + bt
                 }
                 val h = if (isNewUi) toolbarHeight else headerHeight
                 return java.awt.Dimension(w, h)
