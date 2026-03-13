@@ -79,13 +79,15 @@ object JavaCompileService {
             processBuilder.redirectErrorStream(true)
             val process = processBuilder.start()
 
+            // 파이프 데드락 방지: waitFor() 전에 출력 스트림을 먼저 읽는다
+            val output = String(process.inputStream.readAllBytes(), StandardCharsets.UTF_8)
+
             val finished = process.waitFor(COMPILE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             if (!finished) {
                 process.destroyForcibly()
                 return CompileResult(false, "컴파일 시간 초과 (${COMPILE_TIMEOUT_SECONDS}초)", outputDir)
             }
 
-            val output = String(process.inputStream.readAllBytes(), StandardCharsets.UTF_8)
             CompileResult(process.exitValue() == 0, output.trim(), outputDir)
         } catch (e: Exception) {
             CompileResult(false, e.message ?: e::class.simpleName.orEmpty())
