@@ -844,11 +844,23 @@ class BojToolWindowPanel(
     }
 
     private fun handleCreateBoilerplate() {
+        val problem = currentParsedProblem
+        if (problem == null || currentProblemNumber.isNullOrBlank()) {
+            javax.swing.JOptionPane.showMessageDialog(
+                this,
+                "먼저 문제를 지정해주세요.",
+                "보일러플레이트 생성",
+                javax.swing.JOptionPane.WARNING_MESSAGE,
+            )
+            return
+        }
         val selectedDir = resolveSelectedDirectory()
+        val title = problem.title
         val dialog = com.boj.intellij.boilerplate.CreateBoilerplateDialog(
             project = project,
             baseDir = selectedDir,
-            defaultProblemNumber = currentProblemNumber,
+            problemNumber = currentProblemNumber!!,
+            problemTitle = title,
         )
         if (dialog.showAndGet()) {
             val settings = BojSettings.getInstance()
@@ -858,12 +870,14 @@ class BojToolWindowPanel(
                 template = settings.state.boilerplatePathTemplate,
                 problemId = dialog.getProblemNumber(),
                 extension = ext,
+                title = title,
             )
             val rawContent = settings.state.boilerplateTemplates[ext] ?: ""
             val content = com.boj.intellij.boilerplate.BoilerplateService.resolveContent(
                 template = rawContent,
                 problemId = dialog.getProblemNumber(),
                 extension = ext,
+                title = title,
             )
             val targetFile = File(selectedDir, relativePath)
 
