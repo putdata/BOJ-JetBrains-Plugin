@@ -56,7 +56,7 @@
         <applicationService serviceImplementation="com.boj.intellij.settings.BojSettings"/>
 <toolWindow
                 id="BOJ Helper"
-                anchor="right"
+                anchor="left"
                 factoryClass="com.boj.intellij.ui.BojToolWindowFactory"
                 canCloseContents="false"
                 icon="/icons/toolwindow.svg"/>
