@@ -5,6 +5,12 @@
     <description><!-- Replaced by README.md at build time --></description>
 
     <change-notes><![CDATA[
+    <h3>1.4.2</h3>
+    <ul>
+        <li>SDK 선택 기능 추가 — Java/Python SDK를 IDE 내에서 직접 선택하여 컴파일·실행</li>
+        <li>BOJ Helper 도구 창 기본 위치를 오른쪽에서 왼쪽으로 변경</li>
+        <li>보일러플레이트 경로 템플릿 {title} 변수 미치환 수정 및 문제 번호 고정</li>
+    </ul>
     <h3>1.4.1</h3>
     <ul>
         <li>한글 깨짐 수정 — 프로세스 출력의 UTF-8 디코딩 실패 시 시스템 네이티브 인코딩 자동 폴백</li>
