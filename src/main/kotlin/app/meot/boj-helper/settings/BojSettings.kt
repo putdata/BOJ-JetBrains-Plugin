@@ -27,6 +27,8 @@ class BojSettings : PersistentStateComponent<BojSettings.State> {
         var lastSelectedLanguage: String = "",
         // 메모 설정
         var memoFontSize: Int = 0,
+        // SDK 선택 설정 (key: "java" | "python", value: IntelliJ SDK name)
+        var selectedSdkNames: MutableMap<String, String> = mutableMapOf(),
     )
 
     private var myState = State()
