@@ -1,6 +1,5 @@
 package com.boj.intellij.boilerplate
 
-import com.boj.intellij.github.TemplateEngine
 import com.boj.intellij.settings.BojSettings
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -10,16 +9,15 @@ import java.awt.GridBagLayout
 import java.awt.Insets
 import java.io.File
 import javax.swing.*
-import javax.swing.event.DocumentEvent
-import javax.swing.event.DocumentListener
 
 class CreateBoilerplateDialog(
     private val project: Project,
     private val baseDir: File,
-    defaultProblemNumber: String? = null,
+    problemNumber: String,
+    private val problemTitle: String = "",
 ) : DialogWrapper(project) {
 
-    private val problemNumberField = JTextField(defaultProblemNumber ?: "", 15)
+    private val problemNumberField = JTextField(problemNumber, 15).apply { isEditable = false }
     private val languageComboBox = JComboBox<String>()
     private val pathPreviewLabel = JLabel(" ")
 
@@ -62,12 +60,6 @@ class CreateBoilerplateDialog(
         panel.add(pathPreviewLabel, gbc)
 
         // 이벤트 연결
-        val docListener = object : DocumentListener {
-            override fun insertUpdate(e: DocumentEvent?) = updatePreview()
-            override fun removeUpdate(e: DocumentEvent?) = updatePreview()
-            override fun changedUpdate(e: DocumentEvent?) = updatePreview()
-        }
-        problemNumberField.document.addDocumentListener(docListener)
         languageComboBox.addActionListener { updatePreview() }
 
         return panel
@@ -85,6 +77,7 @@ class CreateBoilerplateDialog(
             template = settings.state.boilerplatePathTemplate,
             problemId = problemId,
             extension = ext,
+            title = problemTitle,
         )
         pathPreviewLabel.text = "생성 경로: ${File(baseDir, relativePath).path}"
     }
@@ -94,12 +87,6 @@ class CreateBoilerplateDialog(
     fun getSelectedExtension(): String = languageComboBox.selectedItem as? String ?: ""
 
     override fun doValidate(): ValidationInfo? {
-        if (problemNumberField.text.isBlank()) {
-            return ValidationInfo("문제 번호를 입력하세요.", problemNumberField)
-        }
-        if (!problemNumberField.text.trim().all(Char::isDigit)) {
-            return ValidationInfo("문제 번호는 숫자만 입력하세요.", problemNumberField)
-        }
         if (languageComboBox.selectedItem == null) {
             return ValidationInfo("언어를 선택하세요.")
         }

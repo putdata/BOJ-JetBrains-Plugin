@@ -11,10 +11,12 @@ import com.intellij.ui.JBColor
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Cursor
+import java.awt.Dimension
 import java.awt.FlowLayout
 import java.util.Timer
 import javax.swing.BorderFactory
 import javax.swing.JButton
+import com.intellij.openapi.ui.ComboBoxWithWidePopup
 import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -35,6 +37,25 @@ class RunBarPanel(
         override fun toString(): String = displayName
     }
 
+    data class SdkDisplayEntry(
+        val displayName: String,
+        val sdkName: String?,   // IntelliJ SDK name (영속화용), null = 시스템 기본
+        val homePath: String?,  // SDK home path, null = 시스템 기본
+    ) {
+        override fun toString(): String = displayName
+    }
+
+    private val sdkComboBox = object : ComboBoxWithWidePopup<SdkDisplayEntry>() {
+        override fun getMinimumPopupWidth(): Int {
+            val widest = (0 until model.size).maxOfOrNull { i ->
+                getFontMetrics(font).stringWidth(model.getElementAt(i)?.toString() ?: "") + 30
+            } ?: SDK_COMBO_WIDTH
+            return maxOf(widest, SDK_COMBO_WIDTH)
+        }
+    }.apply {
+        preferredSize = Dimension(SDK_COMBO_WIDTH, preferredSize.height)
+        maximumSize = Dimension(SDK_COMBO_WIDTH, Int.MAX_VALUE)
+    }
     private val commandComboBox = JComboBox<CommandEntry>()
     private val statusLabel = JLabel("실행 대기 중")
 
@@ -50,6 +71,7 @@ class RunBarPanel(
 
         val leftPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
         leftPanel.isOpaque = false
+        leftPanel.add(sdkComboBox)
         leftPanel.add(commandComboBox)
 
         runCatching {
@@ -109,6 +131,33 @@ class RunBarPanel(
 
     fun getSelectedCommand(): String? {
         return (commandComboBox.selectedItem as? CommandEntry)?.command
+    }
+
+    fun setAvailableSdks(sdks: List<SdkEntry>, selectedSdkName: String?) {
+        sdkComboBox.removeAllItems()
+        sdkComboBox.addItem(SdkDisplayEntry("(시스템 기본)", null, null))
+        sdks.forEach { sdk ->
+            val version = sdk.versionString?.let { " ($it)" } ?: ""
+            sdkComboBox.addItem(SdkDisplayEntry("${sdk.name}$version", sdk.name, sdk.homePath))
+        }
+        if (selectedSdkName != null) {
+            for (i in 0 until sdkComboBox.itemCount) {
+                if (sdkComboBox.getItemAt(i).sdkName == selectedSdkName) {
+                    sdkComboBox.selectedIndex = i
+                    break
+                }
+            }
+        }
+    }
+
+    fun getSelectedSdkHomePath(): String? =
+        (sdkComboBox.selectedItem as? SdkDisplayEntry)?.homePath
+
+    fun getSelectedSdkName(): String? =
+        (sdkComboBox.selectedItem as? SdkDisplayEntry)?.sdkName
+
+    fun setSdkSelectorVisible(visible: Boolean) {
+        sdkComboBox.isVisible = visible
     }
 
     fun updateStatus(text: String) {
@@ -176,6 +225,8 @@ class RunBarPanel(
     }
 
     companion object {
+        private const val SDK_COMBO_WIDTH = 120
+
         /**
          * JBColor.border()는 IntelliJ UI 시스템이 초기화되지 않은 테스트 환경에서
          * 실패할 수 있으므로, 안전하게 fallback 색상을 반환한다.

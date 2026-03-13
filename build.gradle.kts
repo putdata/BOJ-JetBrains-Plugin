@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "app.meot"
-version = "1.4.1"
+version = "1.4.2"
 
 repositories {
     mavenCentral()

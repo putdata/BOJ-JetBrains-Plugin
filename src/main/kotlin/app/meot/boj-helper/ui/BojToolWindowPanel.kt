@@ -9,6 +9,7 @@ import com.boj.intellij.parse.BojParser
 import com.boj.intellij.parse.ParsedProblem
 import com.boj.intellij.parse.ParsedSamplePair
 import com.boj.intellij.sample_run.OutputComparisonResult
+import com.boj.intellij.sample_run.JavaCompileService
 import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
 import com.boj.intellij.sample_run.SampleRunResult
@@ -101,6 +102,8 @@ class BojToolWindowPanel(
     @Volatile
     private var cancelRequested = false
 
+    private var allSdks: List<SdkEntry> = emptyList()
+
     private var currentSamples: List<ParsedSamplePair> = emptyList()
     private var currentParsedProblem: ParsedProblem? = null
     private var isFetchInProgress: Boolean = false
@@ -121,6 +124,7 @@ class BojToolWindowPanel(
 
         wireEvents()
         wireCurrentFileTracking()
+        allSdks = SdkResolver.getAllSdks()
         wireThemeChangeListener()
         resetProblemFields()
         setFetchStatus("문제 번호를 입력하거나 현재 클래스명에서 자동 인식해 불러오세요.", isError = false)
@@ -382,6 +386,26 @@ class BojToolWindowPanel(
 
     private fun handleRunSingle(key: TestCaseKey, command: String) {
         saveActiveEditorDocument()
+
+        val prepared = prepareCommand(command) { errorOutput ->
+            runOnEdt {
+                val expectedOutput = when (key) {
+                    is TestCaseKey.Sample -> currentSamples.getOrNull(key.index)?.output ?: ""
+                    is TestCaseKey.Custom -> customTestCaseRepository.load(currentProblemNumber ?: "")[key.name]?.expectedOutput ?: ""
+                    is TestCaseKey.General -> ""
+                }
+                val errorResult = createErrorResult(expectedOutput, "컴파일 오류:\n$errorOutput")
+                when (key) {
+                    is TestCaseKey.Sample -> sendResult(key.index, errorResult)
+                    is TestCaseKey.Custom -> findTestResultService()?.addResult(key, errorResult)
+                    is TestCaseKey.General -> {}
+                }
+                findTestResultPanel()?.setRunningState(false)
+            }
+        }
+        if (prepared == null) return
+        val (effectiveCommand, outputDir) = prepared
+
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         runOnEdt {
             val panel = findTestResultPanel()
@@ -390,41 +414,66 @@ class BojToolWindowPanel(
         }
 
         try {
-            when (key) {
-                is TestCaseKey.Sample -> {
-                    val sample = currentSamples.getOrNull(key.index) ?: return
-                    val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
-                    try {
-                        val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-                        runOnEdt { sendResult(key.index, result) }
-                    } catch (exception: Exception) {
-                        val message = exception.message ?: exception::class.simpleName.orEmpty()
-                        runOnEdt { sendResult(key.index, createErrorResult(sample.output, message)) }
+            try {
+                when (key) {
+                    is TestCaseKey.Sample -> {
+                        val sample = currentSamples.getOrNull(key.index) ?: return
+                        val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
+                        try {
+                            val result = sampleRunServiceFactory(effectiveCommand, workingDirectory).runSample(sampleCase)
+                            runOnEdt { sendResult(key.index, result) }
+                        } catch (exception: Exception) {
+                            val message = exception.message ?: exception::class.simpleName.orEmpty()
+                            runOnEdt { sendResult(key.index, createErrorResult(sample.output, message)) }
+                        }
+                    }
+                    is TestCaseKey.Custom -> {
+                        val problemId = currentProblemNumber ?: return
+                        val case = customTestCaseRepository.load(problemId)[key.name] ?: return
+                        val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput ?: "")
+                        try {
+                            val result = sampleRunServiceFactory(effectiveCommand, workingDirectory).runSample(sampleCase)
+                            runOnEdt { findTestResultService()?.addResult(key, result) }
+                        } catch (exception: Exception) {
+                            val message = exception.message ?: exception::class.simpleName.orEmpty()
+                            runOnEdt { findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message)) }
+                        }
+                    }
+                    is TestCaseKey.General -> {
+                        // General 케이스는 GeneralTestPanel에서 처리
                     }
                 }
-                is TestCaseKey.Custom -> {
-                    val problemId = currentProblemNumber ?: return
-                    val case = customTestCaseRepository.load(problemId)[key.name] ?: return
-                    val sampleCase = SampleCase(input = case.input, expectedOutput = case.expectedOutput ?: "")
-                    try {
-                        val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-                        runOnEdt { findTestResultService()?.addResult(key, result) }
-                    } catch (exception: Exception) {
-                        val message = exception.message ?: exception::class.simpleName.orEmpty()
-                        runOnEdt { findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message)) }
-                    }
-                }
-                is TestCaseKey.General -> {
-                    // General 케이스는 GeneralTestPanel에서 처리
-                }
+            } finally {
+                runOnEdt { findTestResultPanel()?.setRunningState(false) }
             }
         } finally {
-            runOnEdt { findTestResultPanel()?.setRunningState(false) }
+            JavaCompileService.cleanupOutputDir(outputDir)
         }
     }
 
     private fun handleRunAll(command: String) {
         saveActiveEditorDocument()
+
+        runOnEdt {
+            if (JavaCompileService.extractJavaSourceInfo(command) != null) {
+                runBarPanel.updateStatus("컴파일 중...")
+            }
+        }
+
+        val prepared = prepareCommand(command) { errorOutput ->
+            runOnEdt {
+                runBarPanel.setRunning(false)
+                runBarPanel.updateStatus("컴파일 오류")
+                findTestResultPanel()?.setRunningState(false)
+                findTestResultService()?.clearResults()
+                if (currentSamples.isNotEmpty()) {
+                    sendResult(0, createErrorResult("", "컴파일 오류:\n$errorOutput"))
+                }
+            }
+        }
+        if (prepared == null) return
+        val (effectiveCommand, outputDir) = prepared
+
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         var passedCount = 0
         var judgedCount = 0
@@ -445,7 +494,7 @@ class BojToolWindowPanel(
             runOnEdt { findTestResultPanel()?.setRunning(key) }
             try {
                 val sampleCase = SampleCase(input = sample.input, expectedOutput = sample.output)
-                val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                val result = sampleRunServiceFactory(effectiveCommand, workingDirectory).runSample(sampleCase)
                 if (cancelRequested) break
                 judgedCount++
                 if (result.passed) passedCount++
@@ -472,7 +521,7 @@ class BojToolWindowPanel(
                     expectedOutput = case.expectedOutput ?: "",
                 )
                 try {
-                    val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                    val result = sampleRunServiceFactory(effectiveCommand, workingDirectory).runSample(sampleCase)
                     if (cancelRequested) break
                     val hasExpected = case.expectedOutput != null
                     if (hasExpected) {
@@ -489,6 +538,8 @@ class BojToolWindowPanel(
                 }
             }
         }
+
+        JavaCompileService.cleanupOutputDir(outputDir)
 
         val finalPassedCount = passedCount
         val finalJudgedCount = judgedCount
@@ -679,6 +730,23 @@ class BojToolWindowPanel(
             commands.add(RunBarPanel.CommandEntry(displayName, inferredCommand))
         }
         runBarPanel.setAvailableCommands(commands)
+
+        // 현재 파일 확장자에 맞는 SDK 목록 표시
+        val currentExtension = runCatching {
+            FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.extension?.lowercase()
+        }.getOrNull()
+
+        if (currentExtension != null && SdkResolver.isSdkSelectableExtension(currentExtension)) {
+            val filteredSdks = SdkResolver.filterByExtension(allSdks, currentExtension)
+            val sdkTypeKey = SdkResolver.extensionToSdkTypeKey(currentExtension)
+            val selectedName = sdkTypeKey?.let {
+                runCatching { BojSettings.getInstance().state.selectedSdkNames[it] }.getOrNull()
+            }
+            runBarPanel.setAvailableSdks(filteredSdks, selectedName)
+            runBarPanel.setSdkSelectorVisible(true)
+        } else {
+            runBarPanel.setSdkSelectorVisible(false)
+        }
     }
 
     private fun resolveCurrentFileRunCommand(): String? {
@@ -689,6 +757,58 @@ class BojToolWindowPanel(
 
         val pythonInterpreter = PythonInterpreterResolver.resolve(project)
         return inferCommandFromFilePath(selectedFilePath, pythonInterpreter)
+    }
+
+    private fun prepareCommand(
+        command: String,
+        onCompileError: (String) -> Unit,
+    ): Pair<String, File?>? {
+        val sdkHomePath = runBarPanel.getSelectedSdkHomePath()
+
+        // SDK 선택 저장
+        val currentExtension = runCatching {
+            FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.extension?.lowercase()
+        }.getOrNull()
+        if (currentExtension != null) {
+            val sdkTypeKey = SdkResolver.extensionToSdkTypeKey(currentExtension)
+            if (sdkTypeKey != null) {
+                runCatching {
+                    val sdkName = runBarPanel.getSelectedSdkName()
+                    val settings = BojSettings.getInstance().state.selectedSdkNames
+                    if (sdkName != null) settings[sdkTypeKey] = sdkName else settings.remove(sdkTypeKey)
+                }
+            }
+        }
+
+        return when (currentExtension) {
+            "java" -> {
+                val prepareResult = JavaCompileService.compileAndBuildCommand(command, sdkHomePath)
+                if (!prepareResult.success) {
+                    onCompileError(prepareResult.errorOutput)
+                    return null
+                }
+                (prepareResult.effectiveCommand ?: command) to prepareResult.outputDir
+            }
+            "py" -> {
+                if (sdkHomePath != null) {
+                    val interpreterPath = SdkResolver.resolvePythonBinary(sdkHomePath)
+                    replacePythonInterpreter(command, interpreterPath) to null
+                } else {
+                    command to null
+                }
+            }
+            else -> command to null
+        }
+    }
+
+    private fun replacePythonInterpreter(command: String, interpreterPath: String): String {
+        val tokens = ProcessSampleRunService.tokenizeCommand(command)
+        if (tokens.size < 2) return command
+        val quotedInterpreter = "\"${interpreterPath.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        val quotedArgs = tokens.drop(1).joinToString(" ") { token ->
+            "\"${token.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        }
+        return "$quotedInterpreter $quotedArgs"
     }
 
     private fun resolveProblemNumberFromCurrentClassName(): String? {
@@ -724,11 +844,23 @@ class BojToolWindowPanel(
     }
 
     private fun handleCreateBoilerplate() {
+        val problem = currentParsedProblem
+        if (problem == null || currentProblemNumber.isNullOrBlank()) {
+            javax.swing.JOptionPane.showMessageDialog(
+                this,
+                "먼저 문제를 지정해주세요.",
+                "보일러플레이트 생성",
+                javax.swing.JOptionPane.WARNING_MESSAGE,
+            )
+            return
+        }
         val selectedDir = resolveSelectedDirectory()
+        val title = problem.title
         val dialog = com.boj.intellij.boilerplate.CreateBoilerplateDialog(
             project = project,
             baseDir = selectedDir,
-            defaultProblemNumber = currentProblemNumber,
+            problemNumber = currentProblemNumber!!,
+            problemTitle = title,
         )
         if (dialog.showAndGet()) {
             val settings = BojSettings.getInstance()
@@ -738,12 +870,14 @@ class BojToolWindowPanel(
                 template = settings.state.boilerplatePathTemplate,
                 problemId = dialog.getProblemNumber(),
                 extension = ext,
+                title = title,
             )
             val rawContent = settings.state.boilerplateTemplates[ext] ?: ""
             val content = com.boj.intellij.boilerplate.BoilerplateService.resolveContent(
                 template = rawContent,
                 problemId = dialog.getProblemNumber(),
                 extension = ext,
+                title = title,
             )
             val targetFile = File(selectedDir, relativePath)
 

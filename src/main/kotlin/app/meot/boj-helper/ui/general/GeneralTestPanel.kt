@@ -3,6 +3,7 @@ package com.boj.intellij.ui.general
 import com.boj.intellij.common.TestCase
 import com.boj.intellij.common.TestCaseRepository
 import com.boj.intellij.common.TestCaseRepositoryConfig
+import com.boj.intellij.sample_run.JavaCompileService
 import com.boj.intellij.sample_run.OutputComparisonResult
 import com.boj.intellij.sample_run.ProcessSampleRunService
 import com.boj.intellij.sample_run.SampleCase
@@ -15,6 +16,8 @@ import com.boj.intellij.ui.BojToolWindowPanel
 import com.boj.intellij.ui.PythonInterpreterResolver
 import com.boj.intellij.ui.RunBarPanel
 import com.boj.intellij.ui.RunConfigurationCommandResolver
+import com.boj.intellij.ui.SdkEntry
+import com.boj.intellij.ui.SdkResolver
 import com.boj.intellij.ui.common.AddTestCaseDialog
 import com.boj.intellij.ui.common.TestCaseDialogConfig
 import com.boj.intellij.ui.testresult.BojTestResultPanel
@@ -86,6 +89,7 @@ class GeneralTestPanel(
 
     @Volatile
     private var cancelRequested = false
+    private var allSdks: List<SdkEntry> = emptyList()
 
     init {
         border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
@@ -95,6 +99,7 @@ class GeneralTestPanel(
 
         wireCurrentFileTracking()
         detectCurrentFile()
+        allSdks = SdkResolver.getAllSdks()
     }
 
     // --- Layout ---
@@ -377,6 +382,13 @@ class GeneralTestPanel(
     private fun handleRunSingle(testName: String, command: String) {
         saveActiveEditorDocument()
         saveAllTestCasesOnEdt()
+        val prepared = prepareCommand(command) { errorOutput ->
+            runOnEdt {
+                findTestResultPanel()?.setRunningState(false)
+            }
+        }
+        if (prepared == null) return
+        val (effectiveCommand, outputDir) = prepared
         val fileKey = currentFileKey ?: return
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         val case = repository.load(fileKey)[testName] ?: return
@@ -394,27 +406,41 @@ class GeneralTestPanel(
         }
 
         try {
-            val expectedOutput = case.expectedOutput ?: ""
-            val sampleCase = SampleCase(input = case.input, expectedOutput = expectedOutput)
-            val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
-            runOnEdt {
-                findTestResultService()?.addResult(key, result)
-                showTestResultToolWindow()
-            }
-        } catch (exception: Exception) {
-            val message = exception.message ?: exception::class.simpleName.orEmpty()
-            runOnEdt {
-                findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message))
-                showTestResultToolWindow()
+            try {
+                val expectedOutput = case.expectedOutput ?: ""
+                val sampleCase = SampleCase(input = case.input, expectedOutput = expectedOutput)
+                val result = sampleRunServiceFactory(effectiveCommand, workingDirectory).runSample(sampleCase)
+                runOnEdt {
+                    findTestResultService()?.addResult(key, result)
+                    showTestResultToolWindow()
+                }
+            } catch (exception: Exception) {
+                val message = exception.message ?: exception::class.simpleName.orEmpty()
+                runOnEdt {
+                    findTestResultService()?.addResult(key, createErrorResult(case.expectedOutput ?: "", message))
+                    showTestResultToolWindow()
+                }
+            } finally {
+                runOnEdt { findTestResultPanel()?.setRunningState(false) }
             }
         } finally {
-            runOnEdt { findTestResultPanel()?.setRunningState(false) }
+            JavaCompileService.cleanupOutputDir(outputDir)
         }
     }
 
     private fun handleRunAll(command: String) {
         saveActiveEditorDocument()
         saveAllTestCasesOnEdt()
+        val prepared = prepareCommand(command) { errorOutput ->
+            runOnEdt {
+                runBarPanel.setRunning(false)
+                runBarPanel.updateStatus("컴파일 오류")
+                findTestResultPanel()?.setRunningState(false)
+                findTestResultService()?.clearResults()
+            }
+        }
+        if (prepared == null) return
+        val (effectiveCommand, outputDir) = prepared
         val fileKey = currentFileKey ?: return
         val workingDirectory = project.basePath?.takeIf(String::isNotBlank)?.let(::File)
         val cases = repository.load(fileKey)
@@ -450,7 +476,7 @@ class GeneralTestPanel(
             val expectedOutput = case.expectedOutput ?: ""
             val sampleCase = SampleCase(input = case.input, expectedOutput = expectedOutput)
             try {
-                val result = sampleRunServiceFactory(command, workingDirectory).runSample(sampleCase)
+                val result = sampleRunServiceFactory(effectiveCommand, workingDirectory).runSample(sampleCase)
                 if (cancelRequested) break
                 judgedCount++
                 if (result.passed) passedCount++
@@ -464,6 +490,7 @@ class GeneralTestPanel(
             }
         }
 
+        JavaCompileService.cleanupOutputDir(outputDir)
         val finalPassedCount = passedCount
         val finalJudgedCount = judgedCount
         val wasCancelled = cancelRequested
@@ -482,6 +509,57 @@ class GeneralTestPanel(
 
     private fun handleStop() {
         cancelRequested = true
+    }
+
+    private fun prepareCommand(
+        command: String,
+        onCompileError: (String) -> Unit,
+    ): Pair<String, File?>? {
+        val sdkHomePath = runBarPanel.getSelectedSdkHomePath()
+
+        val currentExtension = runCatching {
+            FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.extension?.lowercase()
+        }.getOrNull()
+        if (currentExtension != null) {
+            val sdkTypeKey = SdkResolver.extensionToSdkTypeKey(currentExtension)
+            if (sdkTypeKey != null) {
+                runCatching {
+                    val sdkName = runBarPanel.getSelectedSdkName()
+                    val settings = BojSettings.getInstance().state.selectedSdkNames
+                    if (sdkName != null) settings[sdkTypeKey] = sdkName else settings.remove(sdkTypeKey)
+                }
+            }
+        }
+
+        return when (currentExtension) {
+            "java" -> {
+                val prepareResult = JavaCompileService.compileAndBuildCommand(command, sdkHomePath)
+                if (!prepareResult.success) {
+                    onCompileError(prepareResult.errorOutput)
+                    return null
+                }
+                (prepareResult.effectiveCommand ?: command) to prepareResult.outputDir
+            }
+            "py" -> {
+                if (sdkHomePath != null) {
+                    val interpreterPath = SdkResolver.resolvePythonBinary(sdkHomePath)
+                    replacePythonInterpreter(command, interpreterPath) to null
+                } else {
+                    command to null
+                }
+            }
+            else -> command to null
+        }
+    }
+
+    private fun replacePythonInterpreter(command: String, interpreterPath: String): String {
+        val tokens = ProcessSampleRunService.tokenizeCommand(command)
+        if (tokens.size < 2) return command
+        val quotedInterpreter = "\"${interpreterPath.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        val quotedArgs = tokens.drop(1).joinToString(" ") { token ->
+            "\"${token.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        }
+        return "$quotedInterpreter $quotedArgs"
     }
 
     // --- Helpers ---
@@ -531,6 +609,22 @@ class GeneralTestPanel(
             commands.add(RunBarPanel.CommandEntry(displayName, inferredCommand))
         }
         runBarPanel.setAvailableCommands(commands)
+
+        val currentExtension = runCatching {
+            FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.extension?.lowercase()
+        }.getOrNull()
+
+        if (currentExtension != null && SdkResolver.isSdkSelectableExtension(currentExtension)) {
+            val filteredSdks = SdkResolver.filterByExtension(allSdks, currentExtension)
+            val sdkTypeKey = SdkResolver.extensionToSdkTypeKey(currentExtension)
+            val selectedName = sdkTypeKey?.let {
+                runCatching { BojSettings.getInstance().state.selectedSdkNames[it] }.getOrNull()
+            }
+            runBarPanel.setAvailableSdks(filteredSdks, selectedName)
+            runBarPanel.setSdkSelectorVisible(true)
+        } else {
+            runBarPanel.setSdkSelectorVisible(false)
+        }
     }
 
     private fun resolveCurrentFileRunCommand(): String? {
