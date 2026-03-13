@@ -20,6 +20,7 @@ import com.boj.intellij.ui.common.TestCaseDialogConfig
 import com.boj.intellij.ui.testresult.BojTestResultPanel
 import com.boj.intellij.ui.testresult.PanelMode
 import com.intellij.icons.AllIcons
+import com.boj.intellij.ui.FontUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -600,12 +601,12 @@ class GeneralTestPanel(
     ) : JPanel(BorderLayout()) {
 
         private val inputArea = JBTextArea(input, 3, 0).apply {
-            font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+            font = FontUtil.monoFont(12f)
             lineWrap = true
             isEditable = false
         }
         private val expectedOutputArea = JBTextArea(expectedOutput, 3, 0).apply {
-            font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+            font = FontUtil.monoFont(12f)
             lineWrap = true
             isEditable = false
         }

@@ -5,6 +5,7 @@ import com.boj.intellij.sample_run.SampleRunResult
 import com.boj.intellij.service.TestCaseKey
 import com.boj.intellij.service.TestResultService
 import com.intellij.icons.AllIcons
+import com.boj.intellij.ui.FontUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
@@ -351,7 +352,7 @@ class BojTestResultPanel(
         return JTextArea().apply {
             isEditable = false
             lineWrap = false
-            font = com.intellij.util.ui.JBUI.Fonts.create(Font.MONOSPACED, 12)
+            font = FontUtil.monoFont(12f)
             border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
         }
     }
