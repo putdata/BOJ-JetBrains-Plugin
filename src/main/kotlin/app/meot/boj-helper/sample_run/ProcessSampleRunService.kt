@@ -1,6 +1,7 @@
 package com.boj.intellij.sample_run
 
 import java.io.File
+import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
@@ -18,6 +19,7 @@ class ProcessSampleRunService(
             if (workingDirectory != null) {
                 processBuilder.directory(workingDirectory)
             }
+            configureUtf8Environment(processBuilder)
             val process = processBuilder.start()
             process.outputStream.use { outputStream ->
                 outputStream.write(sampleCase.input.toByteArray(StandardCharsets.UTF_8))
@@ -43,8 +45,10 @@ class ProcessSampleRunService(
                 )
             }
 
-            val actualOutput = process.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
-            val standardError = process.errorStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+            val rawOutput = process.inputStream.readAllBytes()
+            val rawError = process.errorStream.readAllBytes()
+            val actualOutput = decodeOutput(rawOutput)
+            val standardError = stripJvmNoise(decodeOutput(rawError))
             val exitCode = process.exitValue()
             val comparison = outputComparator.compare(sampleCase.expectedOutput, actualOutput)
             val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
@@ -75,7 +79,43 @@ class ProcessSampleRunService(
         }
     }
 
+    private fun configureUtf8Environment(processBuilder: ProcessBuilder) {
+        processBuilder.environment().apply {
+            putIfAbsent("PYTHONIOENCODING", "utf-8")
+            putIfAbsent("PYTHONUTF8", "1")
+            val javaOpts = get("JAVA_TOOL_OPTIONS") ?: ""
+            if ("file.encoding" !in javaOpts) {
+                put("JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 $javaOpts".trim())
+            }
+        }
+    }
+
+    private fun decodeOutput(bytes: ByteArray): String {
+        if (bytes.isEmpty()) return ""
+        val utf8 = String(bytes, StandardCharsets.UTF_8)
+        if (REPLACEMENT_CHAR !in utf8) return utf8
+        val nativeCharset = nativeCharset()
+        if (nativeCharset == StandardCharsets.UTF_8) return utf8
+        val native = String(bytes, nativeCharset)
+        return if (REPLACEMENT_CHAR !in native) native else utf8
+    }
+
+    private fun stripJvmNoise(stderr: String): String =
+        stderr.lineSequence()
+            .filterNot { it.startsWith("Picked up JAVA_TOOL_OPTIONS:") || it.startsWith("Picked up _JAVA_OPTIONS:") }
+            .joinToString("\n")
+
+    private fun nativeCharset(): Charset =
+        runCatching {
+            val name = System.getProperty("native.encoding")
+                ?: System.getProperty("sun.jnu.encoding")
+                ?: return@runCatching StandardCharsets.UTF_8
+            Charset.forName(name)
+        }.getOrDefault(StandardCharsets.UTF_8)
+
     companion object {
+        private const val REPLACEMENT_CHAR = '\uFFFD'
+
         fun tokenizeCommand(command: String): List<String> {
             val tokens = mutableListOf<String>()
             val current = StringBuilder()

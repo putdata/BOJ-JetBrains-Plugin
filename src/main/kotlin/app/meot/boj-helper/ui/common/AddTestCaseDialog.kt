@@ -1,13 +1,13 @@
 package com.boj.intellij.ui.common
 
 import com.boj.intellij.common.TestCase
+import com.boj.intellij.ui.FontUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import java.awt.Dimension
-import java.awt.Font
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -47,11 +47,11 @@ class AddTestCaseDialog(
 
     private val nameField = JTextField(defaultName)
     private val inputArea = JBTextArea().apply {
-        font = Font("JetBrains Mono", Font.PLAIN, 12)
+        font = FontUtil.monoFont(12f)
         rows = 6
     }
     private val expectedOutputArea = JBTextArea().apply {
-        font = Font("JetBrains Mono", Font.PLAIN, 12)
+        font = FontUtil.monoFont(12f)
         rows = 6
     }
 
