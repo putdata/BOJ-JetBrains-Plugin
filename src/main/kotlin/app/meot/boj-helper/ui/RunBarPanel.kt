@@ -35,6 +35,15 @@ class RunBarPanel(
         override fun toString(): String = displayName
     }
 
+    data class SdkDisplayEntry(
+        val displayName: String,
+        val sdkName: String?,   // IntelliJ SDK name (영속화용), null = 시스템 기본
+        val homePath: String?,  // SDK home path, null = 시스템 기본
+    ) {
+        override fun toString(): String = displayName
+    }
+
+    private val sdkComboBox = JComboBox<SdkDisplayEntry>()
     private val commandComboBox = JComboBox<CommandEntry>()
     private val statusLabel = JLabel("실행 대기 중")
 
@@ -50,6 +59,7 @@ class RunBarPanel(
 
         val leftPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
         leftPanel.isOpaque = false
+        leftPanel.add(sdkComboBox)
         leftPanel.add(commandComboBox)
 
         runCatching {
@@ -109,6 +119,33 @@ class RunBarPanel(
 
     fun getSelectedCommand(): String? {
         return (commandComboBox.selectedItem as? CommandEntry)?.command
+    }
+
+    fun setAvailableSdks(sdks: List<SdkEntry>, selectedSdkName: String?) {
+        sdkComboBox.removeAllItems()
+        sdkComboBox.addItem(SdkDisplayEntry("(시스템 기본)", null, null))
+        sdks.forEach { sdk ->
+            val version = sdk.versionString?.let { " ($it)" } ?: ""
+            sdkComboBox.addItem(SdkDisplayEntry("${sdk.name}$version", sdk.name, sdk.homePath))
+        }
+        if (selectedSdkName != null) {
+            for (i in 0 until sdkComboBox.itemCount) {
+                if (sdkComboBox.getItemAt(i).sdkName == selectedSdkName) {
+                    sdkComboBox.selectedIndex = i
+                    break
+                }
+            }
+        }
+    }
+
+    fun getSelectedSdkHomePath(): String? =
+        (sdkComboBox.selectedItem as? SdkDisplayEntry)?.homePath
+
+    fun getSelectedSdkName(): String? =
+        (sdkComboBox.selectedItem as? SdkDisplayEntry)?.sdkName
+
+    fun setSdkSelectorVisible(visible: Boolean) {
+        sdkComboBox.isVisible = visible
     }
 
     fun updateStatus(text: String) {
