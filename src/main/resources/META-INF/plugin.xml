@@ -5,6 +5,10 @@
     <description><!-- Replaced by README.md at build time --></description>
 
     <change-notes><![CDATA[
+    <h3>1.4.3</h3>
+    <ul>
+        <li>Java 코드 복사/제출 시 Main 클래스 변환이 public class가 아닌 첫 번째 클래스에 적용되는 버그 수정</li>
+    </ul>
     <h3>1.4.2</h3>
     <ul>
         <li>SDK 선택 기능 추가 — Java/Python SDK를 IDE 내에서 직접 선택하여 컴파일·실행</li>
