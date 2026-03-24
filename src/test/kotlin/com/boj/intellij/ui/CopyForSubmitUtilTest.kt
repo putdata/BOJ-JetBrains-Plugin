@@ -46,4 +46,38 @@ class CopyForSubmitUtilTest {
         val result = CopyForSubmitUtil.transformForSubmit(code, null)
         assertEquals(code, result)
     }
+
+    @Test
+    fun `renames public class with main method not first class`() {
+        val code = """
+            |import java.io.*;
+            |import java.util.*;
+            |
+            |class Example {
+            |    // some code
+            |}
+            |
+            |public class BOJ11400 {
+            |    public static void main(String[] args) throws Exception {
+            |        // some code
+            |    }
+            |}
+        """.trimMargin()
+        val expected = """
+            |import java.io.*;
+            |import java.util.*;
+            |
+            |class Example {
+            |    // some code
+            |}
+            |
+            |public class Main {
+            |    public static void main(String[] args) throws Exception {
+            |        // some code
+            |    }
+            |}
+        """.trimMargin()
+        val result = CopyForSubmitUtil.transformForSubmit(code, "java")
+        assertEquals(expected, result)
+    }
 }
