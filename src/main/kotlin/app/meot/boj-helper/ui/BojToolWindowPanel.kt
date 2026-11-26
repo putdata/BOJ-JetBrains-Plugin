@@ -35,10 +35,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
-import com.intellij.ui.jcef.JBCefApp
-import com.intellij.ui.jcef.JBCefBrowser
-import com.intellij.ui.jcef.JBCefBrowserBase
-import com.intellij.ui.jcef.JBCefJSQuery
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.GridBagConstraints
@@ -71,7 +67,7 @@ class BojToolWindowPanel(
     private val fetchButton = JButton("문제 불러오기")
     private val fetchStatusLabel = JLabel("문제 번호를 입력하거나 현재 클래스명에서 자동 인식해 불러오세요.")
 
-    private val problemViewBrowser: JBCefBrowser? = createProblemViewBrowserOrNull()
+    private val problemView: ProblemBrowserView? = createProblemViewOrNull()
     private val problemViewFallbackArea = JTextArea().apply {
         isEditable = false
         lineWrap = true
@@ -81,16 +77,6 @@ class BojToolWindowPanel(
     fun getCurrentProblemNumber(): String? = currentProblemNumber
     fun getCurrentProblemTitle(): String? = currentParsedProblem?.title
     fun getCurrentParsedProblem(): ParsedProblem? = currentParsedProblem
-
-    // JS↔Kotlin 통신용 JBCefJSQuery
-    private val jsCefQuery: JBCefJSQuery? = problemViewBrowser?.let { browser ->
-        JBCefJSQuery.create(browser as JBCefBrowserBase).also { query ->
-            query.addHandler { request ->
-                handleJsQuery(request)
-                null // null 반환 시 성공으로 처리
-            }
-        }
-    }
 
     private val runBarPanel = RunBarPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
@@ -166,22 +152,15 @@ class BojToolWindowPanel(
     }
 
     private fun buildMainContent(): JComponent {
-        return problemViewBrowser?.component ?: JScrollPane(problemViewFallbackArea)
+        return problemView?.component ?: JScrollPane(problemViewFallbackArea)
     }
 
-    private fun createProblemViewBrowserOrNull(): JBCefBrowser? {
-        val application = ApplicationManager.getApplication() ?: return null
-        if (application.isUnitTestMode) {
+    private fun createProblemViewOrNull(): ProblemBrowserView? {
+        if (!JcefSupport.isAvailable()) {
             return null
         }
 
-        return runCatching {
-            if (JBCefApp.isSupported()) {
-                JBCefBrowser()
-            } else {
-                null
-            }
-        }.getOrNull()
+        return runCatching { ProblemBrowserView(onJsQuery = ::handleJsQuery) }.getOrNull()
     }
 
     private fun wireEvents() {
@@ -305,9 +284,9 @@ class BojToolWindowPanel(
         currentParsedProblem = problem
         val colors = ThemeColors.fromCurrentTheme()
         val number = currentProblemNumber ?: ""
-        val queryInjection = jsCefQuery?.inject("request") ?: ""
+        val queryInjection = problemView?.injectQuery("request") ?: ""
 
-        problemViewBrowser?.loadHTML(
+        problemView?.loadHtml(
             ProblemViewHtmlBuilder.buildHtml(
                 problem = problem,
                 problemNumber = number,
@@ -821,7 +800,7 @@ class BojToolWindowPanel(
     }
 
     private fun resetProblemFields() {
-        problemViewBrowser?.loadHTML("")
+        problemView?.loadHtml("")
         problemViewFallbackArea.text = ""
 
         currentSamples = emptyList()
@@ -936,8 +915,7 @@ class BojToolWindowPanel(
     }
 
     override fun dispose() {
-        jsCefQuery?.let(Disposer::dispose)
-        problemViewBrowser?.let(Disposer::dispose)
+        problemView?.let(Disposer::dispose)
     }
 
     companion object {

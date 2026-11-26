@@ -65,7 +65,7 @@ class BojSubmitPanel(
             resultDetector = SubmitResultDetector(browser, this)
             setupUploadJsQuery()
         } else {
-            add(buildJcefNotSupportedPanel(), BorderLayout.CENTER)
+            add(SubmitUnavailablePanel(), BorderLayout.CENTER)
         }
     }
 
@@ -86,14 +86,6 @@ class BojSubmitPanel(
         actionPanel.add(githubButton)
         panel.add(actionPanel, BorderLayout.EAST)
 
-        return panel
-    }
-
-    private fun buildJcefNotSupportedPanel(): JPanel {
-        val panel = JPanel(BorderLayout())
-        val label = JLabel("이 IDE에서는 제출 기능을 지원하지 않습니다. (JCEF 미지원)")
-        label.horizontalAlignment = JLabel.CENTER
-        panel.add(label, BorderLayout.CENTER)
         return panel
     }
 

@@ -1,0 +1,5 @@
+<!--
+    com.intellij.modules.jcef 선택적 의존성용 설정 파일.
+    등록할 확장은 없고, 의존성을 선언해 JCEF 클래스를 플러그인 클래스로더에 연결하는 용도다.
+-->
+<idea-plugin/>

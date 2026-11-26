@@ -60,6 +60,11 @@
     ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
+    <!--
+        IntelliJ 2026.2부터 JCEF는 번들 플러그인 "Web Browser (JCEF)"로 분리되어 명시적 의존성이 필요하다.
+        이 ID는 2025.3.1 미만에는 없으므로 optional로 선언해 구버전(JCEF가 코어에 포함) 호환을 유지한다.
+    -->
+    <depends optional="true" config-file="boj-helper-jcef.xml">com.intellij.modules.jcef</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="BOJ Helper" displayType="BALLOON"/>
