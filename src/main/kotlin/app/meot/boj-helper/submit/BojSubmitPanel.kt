@@ -132,8 +132,8 @@ class BojSubmitPanel(
                 object : FileEditorManagerListener {
                     override fun selectionChanged(event: FileEditorManagerEvent) {
                         if (!isActiveTab()) return
-                        val fileName = event.newFile?.name ?: return
-                        val problemNumber = BojToolWindowPanel.extractProblemNumberFromFileName(fileName) ?: return
+                        val filePath = event.newFile?.path ?: return
+                        val problemNumber = BojToolWindowPanel.extractProblemNumberFromFilePath(filePath, project.basePath) ?: return
                         val currentUrl = browser?.cefBrowser?.url
                         val targetSubmitPath = "/submit/$problemNumber"
                         submitButton.isEnabled = true
