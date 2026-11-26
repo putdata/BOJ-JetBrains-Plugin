@@ -877,9 +877,22 @@ class BojToolWindowPanel(
                 overwrite = true,
             )
             if (result.success && result.filePath != null) {
-                val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                    .refreshAndFindFileByIoFile(result.filePath)
-                if (virtualFile != null) {
+                openCreatedFile(result.filePath)
+            }
+        }
+    }
+
+    /**
+     * java.io로 만든 파일을 VFS에 반영한 뒤 에디터로 연다.
+     * EDT(Swing 리스너)에서 동기 VFS refresh를 하면 write-intent 락이 없어 예외가 나므로(2026.2에서 확인),
+     * refresh는 백그라운드 스레드에서 하고 파일 열기만 EDT로 넘긴다.
+     */
+    private fun openCreatedFile(file: File) {
+        runInBackground {
+            val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                .refreshAndFindFileByIoFile(file) ?: return@runInBackground
+            runOnEdt {
+                if (!project.isDisposed) {
                     FileEditorManager.getInstance(project).openFile(virtualFile, true)
                 }
             }
