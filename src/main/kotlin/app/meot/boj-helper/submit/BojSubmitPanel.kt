@@ -39,6 +39,7 @@ class BojSubmitPanel(
     private val githubButton = JButton("GitHub")
     private var resultDetector: SubmitResultDetector? = null
     private var uploadJsQuery: JBCefJSQuery? = null
+    private var loginStateJsQuery: JBCefJSQuery? = null
 
     private val browser: JBCefBrowser? = createBrowserOrNull()
     private var isLoggedIn = false
@@ -47,7 +48,7 @@ class BojSubmitPanel(
     private var pendingUrl: String? = null
 
     companion object {
-        private const val BOJ_BASE_URL = "https://www.acmicpc.net"
+        private const val BOJ_BASE_URL = BojSite.BASE_URL
         private const val BOJ_LOGIN_URL = "$BOJ_BASE_URL/login"
         private const val BOJ_SUBMIT_URL = "$BOJ_BASE_URL/submit"
     }
@@ -64,6 +65,7 @@ class BojSubmitPanel(
             wireCurrentFileTracking()
             resultDetector = SubmitResultDetector(browser, this)
             setupUploadJsQuery()
+            setupLoginStateJsQuery()
         } else {
             add(SubmitUnavailablePanel(), BorderLayout.CENTER)
         }
@@ -182,6 +184,8 @@ class BojSubmitPanel(
     }
 
     private fun handleUrlChanged(url: String) {
+        // 재오픈 후 www.acmicpc.net이 acmicpc.net으로 리다이렉트되므로 호스트는 www 유무와 관계없이 확인한다.
+        if (!BojSite.isBojUrl(url)) return
         when {
             url.contains("/login") -> {
                 updateLoginState(false, null)
@@ -189,75 +193,72 @@ class BojSubmitPanel(
             }
             url.contains("/submit/") -> {
                 updateCodeButton.isEnabled = true
-                extractUsername()
+                refreshLoginState()
                 injectSubmitFormData()
             }
             url.contains("/status") -> {
                 updateCodeButton.isEnabled = false
-                extractUsername()
+                refreshLoginState()
                 startResultDetection()
                 injectGitHubUploadButtons()
             }
-            url.startsWith(BOJ_BASE_URL) && !url.contains("/login") -> {
+            else -> {
                 updateCodeButton.isEnabled = false
-                extractUsername()
+                refreshLoginState()
             }
         }
     }
 
-    private fun extractUsername() {
-        browser?.cefBrowser?.executeJavaScript(
-            """
-            (function() {
-                var userLink = document.querySelector('a.username');
-                if (userLink) {
-                    document.title = 'BOJ_USER:' + userLink.textContent.trim();
+    private fun setupLoginStateJsQuery() {
+        if (browser == null) return
+        loginStateJsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase).also { query ->
+            query.addHandler { raw ->
+                BojSite.parseLoginState(raw)?.let { state ->
+                    ApplicationManager.getApplication().invokeLater {
+                        updateLoginState(state.loggedIn, state.username)
+                    }
                 }
-            })();
-            """.trimIndent(),
-            browser.cefBrowser.url, 0
-        )
-        // title 변경을 감지하여 username 추출
-        // JBCefBrowser는 title 변경을 직접 감지하기 어려우므로
-        // 약간의 딜레이 후 title을 확인
-        ApplicationManager.getApplication().executeOnPooledThread {
-            Thread.sleep(500)
-            ApplicationManager.getApplication().invokeLater {
-                // 대안: JS에서 직접 쿠키/로그인 상태 확인
-                checkLoginStatus()
+                null
             }
         }
     }
 
-    private fun checkLoginStatus() {
-        browser?.cefBrowser?.executeJavaScript(
-            """
+    /**
+     * 페이지 상단 로그인 바로 로그인 여부를 확인한다. 로그아웃 상태면 로그인 바에 /login 링크가 있다.
+     * (예전에는 URL이 www.acmicpc.net으로 시작하면 로그인으로 간주했는데, 재오픈 후 주소가 바뀌어 항상 미로그인으로 남았다.)
+     */
+    private fun refreshLoginState() {
+        val query = loginStateJsQuery ?: return
+        val js = """
             (function() {
-                var userLink = document.querySelector('a.username');
-                if (userLink) {
-                    window.__boj_username = userLink.textContent.trim();
+                var bar = document.querySelector('.loginbar');
+                if (!bar) return;
+                var state;
+                if (bar.querySelector('a[href^="/login"]')) {
+                    state = '${BojSite.LOGGED_OUT}';
+                } else {
+                    var user = document.querySelector('a.username');
+                    state = '${BojSite.LOGGED_IN_PREFIX}' + (user ? user.textContent.trim() : '');
                 }
+                ${query.inject("state")}
             })();
-            """.trimIndent(),
-            browser.cefBrowser.url, 0
-        )
-        // 간단한 방법: URL이 /login이 아니면 로그인된 것으로 간주
-        val url = browser?.cefBrowser?.url ?: return
-        if (url.startsWith(BOJ_BASE_URL) && !url.contains("/login")) {
-            updateLoginState(true, null)
-        }
+        """.trimIndent()
+        browser?.cefBrowser?.executeJavaScript(js, browser.cefBrowser.url, 0)
     }
 
     private fun updateLoginState(loggedIn: Boolean, name: String?) {
         isLoggedIn = loggedIn
         username = name
         if (loggedIn) {
-            loginStatusLabel.text = if (name != null) "로그인됨: $name" else "로그인됨"
+            // 헤더 공간이 좁아 닉네임만 표시하고, 전체 상태는 툴팁으로 보여준다.
+            loginStatusLabel.text = name ?: "로그인됨"
+            loginStatusLabel.toolTipText = if (name != null) "로그인됨: $name" else null
             loginButton.isVisible = false
             logoutButton.isVisible = true
             submitButton.isEnabled = findCurrentProblemNumber() != null
         } else {
             loginStatusLabel.text = "미로그인"
+            loginStatusLabel.toolTipText = null
             loginButton.isVisible = true
             logoutButton.isVisible = false
             submitButton.isEnabled = findCurrentProblemNumber() != null
@@ -349,8 +350,21 @@ class BojSubmitPanel(
             // 2. 코드 에디터에 코드 삽입 (언어 변경 시에만 딜레이)
             append("""
                 var __bojScrollToSubmit = function() {
-                    var el = document.querySelector('.cf-turnstile');
-                    if (el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    // 재오픈 후 캡차가 Cloudflare Turnstile에서 보이지 않는 reCAPTCHA v3로 바뀌어 제출 버튼으로 이동한다.
+                    // 버튼은 페이지 스크립트가 표시하기 전까지 숨겨져 있을 수 있어 잠시 재시도한다.
+                    var tries = 0;
+                    var attempt = function() {
+                        var targets = ['#submit_button', '.cf-turnstile'];
+                        for (var i = 0; i < targets.length; i++) {
+                            var el = document.querySelector(targets[i]);
+                            if (el && el.offsetParent !== null) {
+                                el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                return;
+                            }
+                        }
+                        if (++tries < 15) setTimeout(attempt, 200);
+                    };
+                    setTimeout(attempt, 100);
                 };
                 var __bojInjectCode = function() {
                     // CodeMirror
@@ -524,12 +538,12 @@ class BojSubmitPanel(
     private fun fetchSourceCode(submissionId: String, callback: (String) -> Unit) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val cookies = collectCookies("https://www.acmicpc.net")
+                val cookies = collectBojCookies()
                 val request = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create("https://www.acmicpc.net/source/download/$submissionId"))
+                    .uri(java.net.URI.create("$BOJ_BASE_URL/source/download/$submissionId"))
                     .header("Cookie", cookies)
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                    .header("Referer", "https://www.acmicpc.net/status")
+                    .header("Referer", "$BOJ_BASE_URL/status")
                     .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                     .timeout(java.time.Duration.ofSeconds(15))
                     .GET()
@@ -543,6 +557,15 @@ class BojSubmitPanel(
                 callback("")
             }
         }
+    }
+
+    /** 로그인 쿠키가 acmicpc.net / www.acmicpc.net 중 어디에 발급됐든 찾아서 모은다. */
+    private fun collectBojCookies(): String {
+        for (url in BojSite.COOKIE_URLS) {
+            val cookies = collectCookies(url)
+            if (cookies.isNotEmpty()) return cookies
+        }
+        return ""
     }
 
     private fun collectCookies(url: String): String {
@@ -715,6 +738,7 @@ class BojSubmitPanel(
 
     override fun dispose() {
         uploadJsQuery?.let { Disposer.dispose(it) }
+        loginStateJsQuery?.let { Disposer.dispose(it) }
         browser?.let(Disposer::dispose)
     }
 }
