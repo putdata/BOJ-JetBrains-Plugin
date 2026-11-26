@@ -29,6 +29,11 @@ object JavaCompileService {
     private const val COMPILE_TIMEOUT_SECONDS = 30L
     private const val OUTPUT_DIR_NAME = ".boj-out"
 
+    private val COMMENT_PATTERN = Regex("""/\*[\s\S]*?\*/|//[^\r\n]*""")
+    private val PACKAGE_DECLARATION_PATTERN =
+        Regex("""^\s*package\s+([\p{L}_$][\p{L}\p{N}_$]*(?:\s*\.\s*[\p{L}_$][\p{L}\p{N}_$]*)*)\s*;""")
+    private val WHITESPACE_PATTERN = Regex("""\s+""")
+
     fun extractJavaSourceInfo(command: String): JavaSourceInfo? {
         val tokens = ProcessSampleRunService.tokenizeCommand(command)
         if (tokens.size != 2) return null
@@ -63,7 +68,8 @@ object JavaCompileService {
             )
         }
 
-        val runCommand = buildRunCommand(javaPath, outputDir, javaInfo.className)
+        // javac -d는 패키지 경로(예: boj/p1000/Main.class)로 출력하므로 실행할 때는 FQCN이 필요하다.
+        val runCommand = buildRunCommand(javaPath, outputDir, resolveMainClassName(javaInfo))
         return PrepareResult(
             success = true, errorOutput = "", effectiveCommand = runCommand, outputDir = outputDir,
         )
@@ -98,6 +104,21 @@ object JavaCompileService {
         val escapedJava = quoteForShell(javaPath)
         val escapedDir = quoteForShell(classDir.absolutePath)
         return "$escapedJava -cp $escapedDir $className"
+    }
+
+    /**
+     * 소스 맨 앞의 package 선언에서 패키지명을 읽는다. 선언이 없으면 null.
+     * package 선언 앞에는 주석만 올 수 있으므로, 주석을 지운 뒤 시작 부분만 확인한다.
+     */
+    fun extractPackageName(source: String): String? {
+        val code = source.removePrefix("\uFEFF").replace(COMMENT_PATTERN, " ")
+        return PACKAGE_DECLARATION_PATTERN.find(code)?.groupValues?.get(1)?.replace(WHITESPACE_PATTERN, "")
+    }
+
+    private fun resolveMainClassName(javaInfo: JavaSourceInfo): String {
+        val source = runCatching { javaInfo.sourceFile.readText(StandardCharsets.UTF_8) }.getOrNull()
+        val packageName = source?.let(::extractPackageName)
+        return if (packageName.isNullOrEmpty()) javaInfo.className else "$packageName.${javaInfo.className}"
     }
 
     fun cleanupOutputDir(outputDir: File?) {
