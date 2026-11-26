@@ -1,6 +1,7 @@
 package com.boj.intellij.ui
 
 import com.boj.intellij.submit.BojSubmitPanel
+import com.boj.intellij.submit.SubmitUnavailablePanel
 import com.boj.intellij.ui.general.GeneralTestPanel
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
@@ -18,9 +19,10 @@ class BojToolWindowFactory : ToolWindowFactory, DumbAware {
         bojContent.setDisposer(bojPanel)
         toolWindow.contentManager.addContent(bojContent)
 
-        val submitPanel = BojSubmitPanel(project)
-        val submitContent = contentFactory.createContent(submitPanel, "제출", false)
-        submitContent.setDisposer(submitPanel)
+        // BojSubmitPanel은 JCEF 타입에 직접 의존하므로 JCEF를 쓸 수 없으면 생성하지 않는다.
+        val submitPanel = if (JcefSupport.isAvailable()) BojSubmitPanel(project) else null
+        val submitContent = contentFactory.createContent(submitPanel ?: SubmitUnavailablePanel(), "제출", false)
+        submitPanel?.let(submitContent::setDisposer)
         toolWindow.contentManager.addContent(submitContent)
 
         val generalPanel = GeneralTestPanel(project)

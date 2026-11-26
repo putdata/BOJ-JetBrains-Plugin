@@ -1,5 +1,6 @@
 package com.boj.intellij.sample_run
 
+import com.boj.intellij.ui.SdkResolver
 import java.io.File
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
@@ -64,6 +65,53 @@ class JavaCompileServiceTest {
             val result = JavaCompileService.compile("javac", sourceFile, File(tempDir, ".boj-out"))
             assertFalse(result.success)
             assertTrue(result.errorOutput.isNotBlank())
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `extractPackageName returns package from declaration`() {
+        assertEquals("boj.p1000", JavaCompileService.extractPackageName("package boj.p1000;\n\npublic class Main {}"))
+    }
+
+    @Test
+    fun `extractPackageName returns null without package declaration`() {
+        assertNull(JavaCompileService.extractPackageName("import java.io.*;\npublic class Main {}"))
+        assertNull(JavaCompileService.extractPackageName("public class Main { String s = \"package x;\"; }"))
+    }
+
+    @Test
+    fun `extractPackageName skips leading comments and BOM`() {
+        val source = "\uFEFF// 백준 1000번\n/*\n * package wrong;\n */\npackage boj . p1000 ;\npublic class Main {}"
+        assertEquals("boj.p1000", JavaCompileService.extractPackageName(source))
+    }
+
+    @Test
+    fun `compileAndBuildCommand runs packaged class by fully qualified name`() {
+        val jdkHome = System.getProperty("java.home")
+        if (!File(SdkResolver.resolveJavacBinary(jdkHome)).exists()) return
+        val tempDir = createTempDirectory("javac-pkg-test").toFile()
+        try {
+            val sourceFile = File(tempDir, "boj/p1000/Main.java").apply { parentFile.mkdirs() }
+            sourceFile.writeText("""
+                package boj.p1000;
+
+                public class Main {
+                    public static void main(String[] args) {
+                        System.out.println("ok");
+                    }
+                }
+            """.trimIndent())
+
+            val command = "java \"${sourceFile.path.replace("\\", "\\\\")}\""
+            val result = JavaCompileService.compileAndBuildCommand(command, jdkHome)
+            assertTrue(result.success, "Compile should succeed: ${result.errorOutput}")
+            val effectiveCommand = assertNotNull(result.effectiveCommand)
+            assertTrue(effectiveCommand.endsWith(" boj.p1000.Main"), effectiveCommand)
+
+            val run = ProcessSampleRunService(effectiveCommand).runSample(SampleCase(input = "", expectedOutput = "ok"))
+            assertTrue(run.passed, "Run should pass: ${run.standardError}")
         } finally {
             tempDir.deleteRecursively()
         }

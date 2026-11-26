@@ -35,10 +35,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
-import com.intellij.ui.jcef.JBCefApp
-import com.intellij.ui.jcef.JBCefBrowser
-import com.intellij.ui.jcef.JBCefBrowserBase
-import com.intellij.ui.jcef.JBCefJSQuery
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.GridBagConstraints
@@ -69,9 +65,9 @@ class BojToolWindowPanel(
 ) : JPanel(BorderLayout()), Disposable {
     private val problemNumberField = JTextField(10)
     private val fetchButton = JButton("문제 불러오기")
-    private val fetchStatusLabel = JLabel("문제 번호를 입력하거나 현재 클래스명에서 자동 인식해 불러오세요.")
+    private val fetchStatusLabel = JLabel("문제 번호를 입력하거나 현재 파일에서 자동 인식해 불러오세요.")
 
-    private val problemViewBrowser: JBCefBrowser? = createProblemViewBrowserOrNull()
+    private val problemView: ProblemBrowserView? = createProblemViewOrNull()
     private val problemViewFallbackArea = JTextArea().apply {
         isEditable = false
         lineWrap = true
@@ -81,16 +77,6 @@ class BojToolWindowPanel(
     fun getCurrentProblemNumber(): String? = currentProblemNumber
     fun getCurrentProblemTitle(): String? = currentParsedProblem?.title
     fun getCurrentParsedProblem(): ParsedProblem? = currentParsedProblem
-
-    // JS↔Kotlin 통신용 JBCefJSQuery
-    private val jsCefQuery: JBCefJSQuery? = problemViewBrowser?.let { browser ->
-        JBCefJSQuery.create(browser as JBCefBrowserBase).also { query ->
-            query.addHandler { request ->
-                handleJsQuery(request)
-                null // null 반환 시 성공으로 처리
-            }
-        }
-    }
 
     private val runBarPanel = RunBarPanel(
         onRunAll = { command -> runInBackground { handleRunAll(command) } },
@@ -127,8 +113,8 @@ class BojToolWindowPanel(
         allSdks = SdkResolver.getAllSdks()
         wireThemeChangeListener()
         resetProblemFields()
-        setFetchStatus("문제 번호를 입력하거나 현재 클래스명에서 자동 인식해 불러오세요.", isError = false)
-        autoFetchProblemFromCurrentClassName()
+        setFetchStatus("문제 번호를 입력하거나 현재 파일에서 자동 인식해 불러오세요.", isError = false)
+        autoFetchProblemFromCurrentFile()
     }
 
     private fun buildFetchHeader(): JComponent {
@@ -166,22 +152,15 @@ class BojToolWindowPanel(
     }
 
     private fun buildMainContent(): JComponent {
-        return problemViewBrowser?.component ?: JScrollPane(problemViewFallbackArea)
+        return problemView?.component ?: JScrollPane(problemViewFallbackArea)
     }
 
-    private fun createProblemViewBrowserOrNull(): JBCefBrowser? {
-        val application = ApplicationManager.getApplication() ?: return null
-        if (application.isUnitTestMode) {
+    private fun createProblemViewOrNull(): ProblemBrowserView? {
+        if (!JcefSupport.isAvailable()) {
             return null
         }
 
-        return runCatching {
-            if (JBCefApp.isSupported()) {
-                JBCefBrowser()
-            } else {
-                null
-            }
-        }.getOrNull()
+        return runCatching { ProblemBrowserView(onJsQuery = ::handleJsQuery) }.getOrNull()
     }
 
     private fun wireEvents() {
@@ -217,7 +196,7 @@ class BojToolWindowPanel(
                 object : FileEditorManagerListener {
                     override fun selectionChanged(event: FileEditorManagerEvent) {
                         if (!isActiveTab()) return
-                        autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
+                        autoFetchProblemFromCurrentFile(forceSyncToCurrentFile = true)
                         updateRunBarCommands()
                     }
                 },
@@ -231,11 +210,11 @@ class BojToolWindowPanel(
         }
 
         val typedProblemNumber = problemNumberField.text.trim()
-        val inferredProblemNumber = if (typedProblemNumber.isBlank()) resolveProblemNumberFromCurrentClassName() else null
+        val inferredProblemNumber = if (typedProblemNumber.isBlank()) resolveProblemNumberFromCurrentFile() else null
         val problemNumber = if (typedProblemNumber.isNotBlank()) typedProblemNumber else inferredProblemNumber
 
         if (problemNumber == null) {
-            setFetchStatus("문제 번호를 입력하거나 클래스명에 문제 번호를 포함하세요.", isError = true)
+            setFetchStatus("문제 번호를 입력하거나 파일명·폴더명에 문제 번호를 포함하세요.", isError = true)
             return
         }
 
@@ -253,7 +232,7 @@ class BojToolWindowPanel(
         setFetchInProgress(true)
         setFetchStatus(
             if (inferredFromClassName) {
-                "현재 클래스명에서 추출한 문제 $problemNumber 를 불러오는 중입니다..."
+                "현재 파일에서 인식한 문제 $problemNumber 를 불러오는 중입니다..."
             } else {
                 "문제 $problemNumber 를 불러오는 중입니다..."
             },
@@ -284,8 +263,8 @@ class BojToolWindowPanel(
         }
     }
 
-    private fun autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile: Boolean = false) {
-        val inferredProblemNumber = resolveProblemNumberFromCurrentClassName() ?: return
+    private fun autoFetchProblemFromCurrentFile(forceSyncToCurrentFile: Boolean = false) {
+        val inferredProblemNumber = resolveProblemNumberFromCurrentFile() ?: return
 
         val currentFieldValue = problemNumberField.text.trim()
         if (!shouldAutoFetchFromDetectedProblemNumber(
@@ -305,9 +284,9 @@ class BojToolWindowPanel(
         currentParsedProblem = problem
         val colors = ThemeColors.fromCurrentTheme()
         val number = currentProblemNumber ?: ""
-        val queryInjection = jsCefQuery?.inject("request") ?: ""
+        val queryInjection = problemView?.injectQuery("request") ?: ""
 
-        problemViewBrowser?.loadHTML(
+        problemView?.loadHtml(
             ProblemViewHtmlBuilder.buildHtml(
                 problem = problem,
                 problemNumber = number,
@@ -628,7 +607,7 @@ class BojToolWindowPanel(
 
     fun onTabSelected() {
         findTestResultPanel()?.setMode(PanelMode.BOJ)
-        autoFetchProblemFromCurrentClassName(forceSyncToCurrentFile = true)
+        autoFetchProblemFromCurrentFile(forceSyncToCurrentFile = true)
         updateRunBarCommands()
 
         val testService = findTestResultService() ?: return
@@ -811,17 +790,17 @@ class BojToolWindowPanel(
         return "$quotedInterpreter $quotedArgs"
     }
 
-    private fun resolveProblemNumberFromCurrentClassName(): String? {
-        val selectedFileName =
+    private fun resolveProblemNumberFromCurrentFile(): String? {
+        val selectedFilePath =
             runCatching {
-                FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.name
+                FileEditorManager.getInstance(project).selectedFiles.firstOrNull()?.path
             }.getOrNull() ?: return null
 
-        return extractProblemNumberFromFileName(selectedFileName)
+        return extractProblemNumberFromFilePath(selectedFilePath, project.basePath)
     }
 
     private fun resetProblemFields() {
-        problemViewBrowser?.loadHTML("")
+        problemView?.loadHtml("")
         problemViewFallbackArea.text = ""
 
         currentSamples = emptyList()
@@ -898,9 +877,22 @@ class BojToolWindowPanel(
                 overwrite = true,
             )
             if (result.success && result.filePath != null) {
-                val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                    .refreshAndFindFileByIoFile(result.filePath)
-                if (virtualFile != null) {
+                openCreatedFile(result.filePath)
+            }
+        }
+    }
+
+    /**
+     * java.io로 만든 파일을 VFS에 반영한 뒤 에디터로 연다.
+     * EDT(Swing 리스너)에서 동기 VFS refresh를 하면 write-intent 락이 없어 예외가 나므로(2026.2에서 확인),
+     * refresh는 백그라운드 스레드에서 하고 파일 열기만 EDT로 넘긴다.
+     */
+    private fun openCreatedFile(file: File) {
+        runInBackground {
+            val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                .refreshAndFindFileByIoFile(file) ?: return@runInBackground
+            runOnEdt {
+                if (!project.isDisposed) {
                     FileEditorManager.getInstance(project).openFile(virtualFile, true)
                 }
             }
@@ -936,8 +928,7 @@ class BojToolWindowPanel(
     }
 
     override fun dispose() {
-        jsCefQuery?.let(Disposer::dispose)
-        problemViewBrowser?.let(Disposer::dispose)
+        problemView?.let(Disposer::dispose)
     }
 
     companion object {
@@ -974,6 +965,27 @@ class BojToolWindowPanel(
         internal fun extractProblemNumberFromFileName(fileName: String): String? {
             val className = fileName.substringBeforeLast('.', fileName)
             return extractProblemNumberFromClassName(className)
+        }
+
+        /**
+         * 파일 경로에서 문제 번호를 찾는다. 파일명을 먼저 보고, 없으면 가까운 폴더부터 위로 올라가며 찾는다.
+         * (예: `1000/Main.cpp`, `boj/p1000/Main.java`) 프로젝트 바깥 폴더(예: 사용자 홈의 연도 폴더)는
+         * 오인식을 막기 위해 보지 않는다. 프로젝트 경로를 모르거나 프로젝트 밖의 파일이면 바로 위 폴더만 본다.
+         */
+        @JvmStatic
+        internal fun extractProblemNumberFromFilePath(filePath: String, projectBasePath: String?): String? {
+            val normalizedPath = filePath.replace('\\', '/')
+            extractProblemNumberFromFileName(normalizedPath.substringAfterLast('/'))?.let { return it }
+
+            val parentPath = normalizedPath.substringBeforeLast('/', "")
+            val basePath = projectBasePath?.replace('\\', '/')?.trimEnd('/')
+            val directoryNames = when {
+                basePath == null -> listOf(parentPath.substringAfterLast('/'))
+                parentPath == basePath -> emptyList()
+                parentPath.startsWith("$basePath/") -> parentPath.removePrefix("$basePath/").split('/')
+                else -> listOf(parentPath.substringAfterLast('/'))
+            }
+            return directoryNames.asReversed().firstNotNullOfOrNull(::extractProblemNumberFromClassName)
         }
 
         @JvmStatic
@@ -1026,7 +1038,8 @@ class BojToolWindowPanel(
                 "/src/test/kotlin/",
             )
 
-        private val PROBLEM_NUMBER_PATTERN = Regex("\\d+")
+        // 백준 문제 번호는 1000번부터 시작한다. 앞뒤가 숫자가 아닌 4~6자리 숫자만 문제 번호로 본다.
+        private val PROBLEM_NUMBER_PATTERN = Regex("(?<!\\d)\\d{4,6}(?!\\d)")
 
         // JSON 이스케이프된 문자열 값 추출 (\" 포함 처리)
         private val JSON_STRING_PATTERN = """(?:[^"\\]|\\.)*"""

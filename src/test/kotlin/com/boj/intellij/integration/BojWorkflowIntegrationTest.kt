@@ -136,6 +136,36 @@ class BojWorkflowIntegrationTest {
     }
 
     @Test
+    fun `problem number must be a 4 to 6 digit number`() {
+        assertEquals("1000", BojToolWindowPanel.extractProblemNumberFromClassName("B1_1000"))
+        assertEquals("123456", BojToolWindowPanel.extractProblemNumberFromClassName("Main123456"))
+        assertNull(BojToolWindowPanel.extractProblemNumberFromClassName("Main2"))
+        assertNull(BojToolWindowPanel.extractProblemNumberFromClassName("Solve20241126"))
+    }
+
+    @Test
+    fun `extracts problem number from file path including directories`() {
+        val base = "/Users/me/2024/algo"
+        // 파일 생성 기본 경로({problemId}/Main.{ext})
+        assertEquals("1001", BojToolWindowPanel.extractProblemNumberFromFilePath("$base/1001/Main.cpp", base))
+        // 패키지 폴더
+        assertEquals("1000", BojToolWindowPanel.extractProblemNumberFromFilePath("$base/src/boj/p1000/Main.java", base))
+        // 파일명이 폴더보다 우선
+        assertEquals("1002", BojToolWindowPanel.extractProblemNumberFromFilePath("$base/1001/Main1002.cpp", base))
+        // 가장 가까운 폴더가 우선
+        assertEquals("1000", BojToolWindowPanel.extractProblemNumberFromFilePath("$base/1500/1000_A+B/Main.py", base))
+        // 프로젝트 바깥 폴더(2024)와 3자리 이하 숫자는 무시
+        assertNull(BojToolWindowPanel.extractProblemNumberFromFilePath("$base/Main.cpp", base))
+        assertNull(BojToolWindowPanel.extractProblemNumberFromFilePath("$base/week3/Main.cpp", base))
+        // 프로젝트 경로를 모르거나 프로젝트 밖의 파일이면 바로 위 폴더만 확인
+        assertEquals("1001", BojToolWindowPanel.extractProblemNumberFromFilePath("/tmp/1001/Main.cpp", null))
+        assertEquals("1001", BojToolWindowPanel.extractProblemNumberFromFilePath("/tmp/2024/1001/Main.cpp", base))
+        assertNull(BojToolWindowPanel.extractProblemNumberFromFilePath("/tmp/2024/x/Main.cpp", base))
+        // Windows 경로
+        assertEquals("1001", BojToolWindowPanel.extractProblemNumberFromFilePath("C:\\algo\\1001\\Main.cpp", "C:\\algo"))
+    }
+
+    @Test
     fun `json string extraction handles escaped quotes and backslashes`() {
         val json = """{"action":"runSample","index":0,"command":"java \"C:\\path\\Main.java\""}"""
         assertEquals("runSample", BojToolWindowPanel.extractJsonString(json, "action"))
